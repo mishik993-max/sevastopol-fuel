@@ -25,6 +25,7 @@ import { useGeolocation } from './composables/useGeolocation';
 import { readGeoGate, saveGeoGate } from './composables/useGeoGate';
 import { readCookieConsent, saveCookieConsent } from './composables/useCookieConsent';
 import { isInBbox, loadAppSettings, useAppSettings } from './composables/useAppSettings';
+import { useShare } from './composables/useShare';
 
 const { stations, loading, error, fetchStations, fetchNearby, fetchStation } = useStations();
 const { position, locate, loading: geoLoading, resolved: geoResolved, error: geoError } = useGeolocation();
@@ -39,6 +40,8 @@ const showLegal = ref(false);
 const legalDocId = ref('privacy');
 const settingsReady = ref(false);
 const { networkPriority, mapCenter } = useAppSettings();
+const { canShare, share } = useShare();
+const shareLoading = ref(false);
 
 const selectedFuel = ref('a95');
 const selectedNetwork = ref(null);
@@ -268,6 +271,26 @@ function reloadPage() {
     window.location.reload();
 }
 
+async function shareApp() {
+    if (shareLoading.value) {
+        return;
+    }
+
+    shareLoading.value = true;
+
+    try {
+        const result = await share();
+
+        if (result.ok && result.method === 'clipboard') {
+            window.alert('Ссылка скопирована');
+        }
+    } catch (error) {
+        window.alert(error.message || 'Не удалось поделиться');
+    } finally {
+        shareLoading.value = false;
+    }
+}
+
 function openAddStation() {
     selectedStation.value = null;
     showReport.value = false;
@@ -427,6 +450,17 @@ async function onStationClosed() {
                     </button>
                     <button type="button" class="topbar-icon-btn" title="Обратная связь" @click="showFeedback = true">
                         ✉
+                    </button>
+                    <button
+                        v-if="canShare"
+                        type="button"
+                        class="topbar-icon-btn topbar-icon-btn--share"
+                        title="Поделиться"
+                        aria-label="Поделиться"
+                        :disabled="shareLoading"
+                        @click="shareApp"
+                    >
+                        ↗
                     </button>
                     <span v-if="filteredStations.length" class="station-count">{{ filteredStations.length }}</span>
                     <div class="view-toggle" data-tour="view">
