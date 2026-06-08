@@ -1,0 +1,73 @@
+<script setup>
+import { ref } from 'vue';
+import { FUEL_TYPES } from '../constants';
+import { apiUrl } from '../api';
+
+const props = defineProps({
+    station: { type: Object, required: true },
+    selectedFuel: { type: String, default: 'a95' },
+});
+
+const emit = defineEmits(['done', 'close']);
+
+const fuelType = ref(props.selectedFuel);
+const submitting = ref(false);
+const error = ref(null);
+
+async function confirm() {
+    submitting.value = true;
+    error.value = null;
+
+    try {
+        const res = await fetch(apiUrl(`/api/stations/${props.station.id}/confirm`), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify({ fuel_type: fuelType.value }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+            const msg = json.errors?.fuel_type?.[0] || json.message || 'Ошибка';
+            throw new Error(msg);
+        }
+        emit('done', json.data);
+    } catch (e) {
+        error.value = e.message;
+    } finally {
+        submitting.value = false;
+    }
+}
+</script>
+
+<template>
+    <div class="modal-overlay" @click.self="emit('close')">
+        <div class="modal modal-sm">
+            <button class="close-btn" type="button" @click="emit('close')">✕</button>
+            <h2>Подтверждаю</h2>
+            <p class="hint">✓ Подтверждаю, что информация актуальна</p>
+
+            <fieldset>
+                <legend>Топливо</legend>
+                <div class="radio-grid">
+                    <label v-for="f in FUEL_TYPES" :key="f.value" class="radio-label">
+                        <input v-model="fuelType" type="radio" :value="f.value" />
+                        {{ f.label }}
+                    </label>
+                </div>
+            </fieldset>
+
+            <p v-if="error" class="error">{{ error }}</p>
+
+            <button
+                type="button"
+                class="btn btn-secondary btn-block"
+                :disabled="submitting"
+                @click="confirm"
+            >
+                {{ submitting ? '…' : 'Подтверждаю' }}
+            </button>
+        </div>
+    </div>
+</template>

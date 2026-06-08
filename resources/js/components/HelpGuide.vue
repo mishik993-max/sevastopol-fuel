@@ -1,0 +1,36 @@
+<script setup>
+import { GUIDE_SECTIONS } from '../data/guide';
+import LegalLinks from './LegalLinks.vue';
+
+const emit = defineEmits(['close', 'start-tour', 'open-legal']);
+</script>
+
+<template>
+    <div class="modal-overlay" @click.self="emit('close')">
+        <div class="modal guide-modal">
+            <button class="close-btn" type="button" @click="emit('close')">✕</button>
+            <h2>Справочник</h2>
+            <p class="hint">Как пользоваться картой топлива Севастополя</p>
+
+            <button type="button" class="btn btn-secondary btn-block guide-tour-btn" @click="emit('start-tour')">
+                Пройти обучение снова
+            </button>
+
+            <section v-for="section in GUIDE_SECTIONS" :key="section.id" class="guide-section">
+                <h3 class="guide-section-title">{{ section.title }}</h3>
+                <p class="guide-section-text">{{ section.content }}</p>
+            </section>
+
+            <div class="guide-legal-block">
+                <p class="guide-legal-lead">
+                    Без регистрации. GPS не уходит на сервер. На сервер — только ваши добровольные отчёты и обратная связь.
+                </p>
+                <LegalLinks @open="emit('open-legal', $event)" />
+            </div>
+
+            <p class="guide-footer">
+                Админка модерации: <a href="/admin" class="guide-link">/admin</a>
+            </p>
+        </div>
+    </div>
+</template>

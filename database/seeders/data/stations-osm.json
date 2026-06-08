@@ -1,0 +1,14 @@
+{
+  "source": "OpenStreetMap, Севастополь",
+  "elements": [
+    {"type": "node", "id": 796952444, "lat": 44.59105, "lon": 33.5203, "tags": {"amenity": "fuel", "name": "TES", "brand": "TES", "addr:street": "ул. Николая Музыки"}},
+    {"type": "way", "id": 195408442, "center": {"lat": 44.6402605, "lon": 33.5433838}, "tags": {"amenity": "fuel", "name": "TES", "brand": "TES"}},
+    {"type": "way", "id": 852019410, "center": {"lat": 44.5742356, "lon": 33.5812401}, "tags": {"amenity": "fuel", "name": "ТЭС", "brand": "ТЭС"}},
+    {"type": "way", "id": 406595245, "center": {"lat": 44.5977192, "lon": 33.5570278}, "tags": {"amenity": "fuel", "name": "ТЭС", "brand": "ТЭС", "addr:street": "ул. Семипалатинская"}},
+    {"type": "way", "id": 239056162, "center": {"lat": 44.5810654, "lon": 33.4787093}, "tags": {"amenity": "fuel", "name": "TES", "brand": "TES", "addr:street": "Фиолентовское шоссе"}},
+    {"type": "way", "id": 415081558, "center": {"lat": 44.5539435, "lon": 33.5132704}, "tags": {"amenity": "fuel", "name": "WOG", "brand": "WOG"}},
+    {"type": "node", "id": 4550468689, "lat": 44.5576769, "lon": 33.5219029, "tags": {"amenity": "fuel", "name": "WOG", "brand": "WOG", "addr:street": "ул. Хрусталева"}},
+    {"type": "way", "id": 286051441, "center": {"lat": 44.5734219, "lon": 33.5088492}, "tags": {"amenity": "fuel", "name": "Севастопольская АЗС", "brand": "АЗС"}},
+    {"type": "way", "id": 326308385, "center": {"lat": 44.6340596, "lon": 33.5341042}, "tags": {"amenity": "fuel", "name": "Северная АЗС", "brand": "АЗС"}}
+  ]
+}

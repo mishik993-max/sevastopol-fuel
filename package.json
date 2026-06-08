@@ -3,8 +3,10 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
-        "dev": "vite"
+        "build": "vite build && node scripts/copy-sw.cjs",
+        "dev": "vite",
+        "mobile": "cmd /c scripts\\serve-mobile.bat",
+        "push:test": "cmd /c scripts\\push-test.bat"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
@@ -12,5 +14,11 @@
         "laravel-vite-plugin": "^3.1",
         "tailwindcss": "^4.0.0",
         "vite": "^8.0.0"
+    },
+    "dependencies": {
+        "@vitejs/plugin-vue": "^6.0.7",
+        "vite-plugin-pwa": "^1.3.0",
+        "vue": "^3.5.35",
+        "workbox-window": "^7.4.1"
     }
 }

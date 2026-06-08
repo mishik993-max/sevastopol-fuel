@@ -1,3 +1,12 @@
+<IfModule mod_headers.c>
+    <FilesMatch "sw\.js$">
+        Header set Service-Worker-Allowed "/"
+    </FilesMatch>
+    <FilesMatch "^build/sw\.js$">
+        Header set Service-Worker-Allowed "/"
+    </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

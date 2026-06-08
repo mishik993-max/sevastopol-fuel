@@ -1,0 +1,51 @@
+<?php
+
+use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\FeedbackController;
+use App\Http\Controllers\Api\PushController;
+use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\StatsController;
+use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\StationClosureController;
+use App\Http\Controllers\Api\StationCorrectionController;
+use App\Http\Controllers\Api\StationController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('/stations', [StationController::class, 'index']);
+    Route::post('/stations', [StationController::class, 'store'])->middleware('throttle:5,60');
+    Route::get('/stations/nearby', [StationController::class, 'nearby']);
+    Route::get('/stations/{station}', [StationController::class, 'show']);
+
+    Route::post('/reports', [ReportController::class, 'store'])->middleware('throttle:10,1');
+    Route::post('/stations/{station}/confirm', [ReportController::class, 'confirm'])->middleware('throttle:10,1');
+    Route::post('/stations/{station}/close', [StationClosureController::class, 'store'])->middleware('throttle:10,1');
+    Route::post('/stations/{station}/corrections', [StationCorrectionController::class, 'store'])->middleware('throttle:10,60');
+    Route::post('/stations/{station}/corrections/{correction}/confirm', [StationCorrectionController::class, 'confirm'])->middleware('throttle:30,1');
+
+    Route::get('/stats', [StatsController::class, 'index']);
+    Route::get('/settings', [SettingsController::class, 'index']);
+
+    Route::post('/feedback', [FeedbackController::class, 'store'])->middleware('throttle:5,60');
+
+    Route::post('/admin/login', [AdminController::class, 'login'])->middleware('throttle:10,1');
+    Route::middleware(['admin', 'throttle:30,1'])->prefix('admin')->group(function () {
+        Route::get('/summary', [AdminController::class, 'summary']);
+        Route::get('/corrections', [AdminController::class, 'corrections']);
+        Route::post('/corrections/{correction}/apply', [AdminController::class, 'applyCorrection']);
+        Route::post('/corrections/{correction}/reject', [AdminController::class, 'rejectCorrection']);
+        Route::get('/feedback', [AdminController::class, 'feedback']);
+        Route::patch('/feedback/{feedback}', [AdminController::class, 'updateFeedback']);
+        Route::get('/settings', [AdminController::class, 'settings']);
+        Route::patch('/settings', [AdminController::class, 'updateSettings']);
+        Route::get('/reports', [AdminController::class, 'reports']);
+        Route::post('/reports/{report}/hide', [AdminController::class, 'hideReport']);
+        Route::post('/reports/{report}/unhide', [AdminController::class, 'unhideReport']);
+        Route::get('/osm-import/preview', [AdminController::class, 'osmImportPreview'])->middleware('throttle:10,30');
+        Route::post('/osm-import/run', [AdminController::class, 'osmImportRun'])->middleware('throttle:10,30');
+    });
+
+    Route::get('/push/vapid-public-key', [PushController::class, 'vapidPublicKey']);
+    Route::post('/push/subscribe', [PushController::class, 'subscribe']);
+    Route::delete('/push/unsubscribe', [PushController::class, 'unsubscribe']);
+});
