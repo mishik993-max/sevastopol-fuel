@@ -2,9 +2,18 @@ import { computed, onMounted, ref } from 'vue';
 
 const DISMISS_KEY = 'pwa_install_dismissed';
 
-function isStandalone() {
-    return window.matchMedia('(display-mode: standalone)').matches
-        || window.navigator.standalone === true;
+function isRunningAsApp() {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    if (window.navigator.standalone === true) {
+        return true;
+    }
+
+    return ['standalone', 'fullscreen', 'minimal-ui'].some(
+        (mode) => window.matchMedia(`(display-mode: ${mode})`).matches,
+    );
 }
 
 function isIos() {
@@ -17,14 +26,14 @@ function isAndroid() {
 }
 
 const deferredPrompt = ref(null);
-const installed = ref(false);
+const installed = ref(isRunningAsApp());
 const showHint = ref(false);
 const hintMode = ref('ios');
 const dismissed = ref(false);
 let listenersBound = false;
 
 const canInstall = computed(() => {
-    if (installed.value || !window.isSecureContext) {
+    if (isRunningAsApp() || !window.isSecureContext) {
         return false;
     }
 
@@ -45,7 +54,7 @@ function bindListeners() {
     }
 
     listenersBound = true;
-    installed.value = isStandalone();
+    installed.value = isRunningAsApp();
     dismissed.value = !!localStorage.getItem(DISMISS_KEY);
 
     window.addEventListener('beforeinstallprompt', (event) => {
