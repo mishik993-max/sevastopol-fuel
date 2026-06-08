@@ -85,10 +85,6 @@ async function shareApp() {
                 </p>
                 <LegalLinks @open="emit('open-legal', $event)" />
             </div>
-
-            <p class="guide-footer">
-                Админка модерации: <a href="/admin" class="guide-link">/admin</a>
-            </p>
         </div>
     </div>
 </template>
