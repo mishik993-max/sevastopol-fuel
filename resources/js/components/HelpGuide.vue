@@ -1,11 +1,15 @@
 <script setup>
+import { ref } from 'vue';
 import { GUIDE_SECTIONS } from '../data/guide';
 import LegalLinks from './LegalLinks.vue';
 import { usePwaInstall } from '../composables/usePwaInstall';
+import { useShare } from '../composables/useShare';
 
 const emit = defineEmits(['close', 'start-tour', 'open-legal']);
 
 const { canInstall, promptVisible, showReopenTrigger, reopenPrompt, install } = usePwaInstall();
+const { canShare, share } = useShare();
+const shareLoading = ref(false);
 
 function openInstall() {
     if (showReopenTrigger.value) {
@@ -17,6 +21,26 @@ function openInstall() {
     }
 
     emit('close');
+}
+
+async function shareApp() {
+    if (shareLoading.value) {
+        return;
+    }
+
+    shareLoading.value = true;
+
+    try {
+        const result = await share();
+
+        if (result.ok && result.method === 'clipboard') {
+            window.alert('Ссылка скопирована');
+        }
+    } catch (error) {
+        window.alert(error.message || 'Не удалось поделиться');
+    } finally {
+        shareLoading.value = false;
+    }
 }
 </script>
 
@@ -38,6 +62,16 @@ function openInstall() {
                 @click="openInstall"
             >
                 Установить приложение
+            </button>
+
+            <button
+                v-if="canShare"
+                type="button"
+                class="btn btn-secondary btn-block guide-tour-btn"
+                :disabled="shareLoading"
+                @click="shareApp"
+            >
+                Поделиться ссылкой
             </button>
 
             <section v-for="section in GUIDE_SECTIONS" :key="section.id" class="guide-section">

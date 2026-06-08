@@ -451,17 +451,6 @@ async function onStationClosed() {
                     <button type="button" class="topbar-icon-btn" title="Обратная связь" @click="showFeedback = true">
                         ✉
                     </button>
-                    <button
-                        v-if="canShare"
-                        type="button"
-                        class="topbar-icon-btn topbar-icon-btn--share"
-                        title="Поделиться"
-                        aria-label="Поделиться"
-                        :disabled="shareLoading"
-                        @click="shareApp"
-                    >
-                        ↗
-                    </button>
                     <span v-if="filteredStations.length" class="station-count">{{ filteredStations.length }}</span>
                     <div class="view-toggle" data-tour="view">
                         <button
@@ -590,6 +579,17 @@ async function onStationClosed() {
                 </button>
                 <button v-if="mode === 'nearby'" type="button" class="map-fab" @click="showAll">
                     Все
+                </button>
+                <button
+                    v-if="canShare"
+                    type="button"
+                    class="map-fab map-fab--share"
+                    title="Поделиться"
+                    aria-label="Поделиться"
+                    :disabled="shareLoading"
+                    @click="shareApp"
+                >
+                    ↗
                 </button>
             </div>
 
