@@ -1,8 +1,23 @@
 <script setup>
 import { GUIDE_SECTIONS } from '../data/guide';
 import LegalLinks from './LegalLinks.vue';
+import { usePwaInstall } from '../composables/usePwaInstall';
 
 const emit = defineEmits(['close', 'start-tour', 'open-legal']);
+
+const { canInstall, promptVisible, showReopenTrigger, reopenPrompt, install } = usePwaInstall();
+
+function openInstall() {
+    if (showReopenTrigger.value) {
+        reopenPrompt();
+    } else if (promptVisible.value) {
+        return;
+    } else {
+        install();
+    }
+
+    emit('close');
+}
 </script>
 
 <template>
@@ -14,6 +29,15 @@ const emit = defineEmits(['close', 'start-tour', 'open-legal']);
 
             <button type="button" class="btn btn-secondary btn-block guide-tour-btn" @click="emit('start-tour')">
                 Пройти обучение снова
+            </button>
+
+            <button
+                v-if="canInstall"
+                type="button"
+                class="btn btn-primary btn-block guide-tour-btn"
+                @click="openInstall"
+            >
+                Установить приложение
             </button>
 
             <section v-for="section in GUIDE_SECTIONS" :key="section.id" class="guide-section">
