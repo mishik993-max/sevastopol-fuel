@@ -496,6 +496,24 @@ body {
     color: #fff;
 }
 
+.map-fab--refresh {
+    position: absolute;
+    left: 12px;
+    bottom: 72px;
+    z-index: 500;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 1.35rem;
+    line-height: 1;
+    background: rgba(20, 16, 14, 0.92);
+    border: 1px solid var(--border);
+    color: var(--text);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
 .loading-badge,
 .error-badge,
 .notice-badge {
@@ -1629,31 +1647,60 @@ body {
     flex-shrink: 0;
 }
 
-.topbar-icon-btn--refresh {
-    font-size: 1.05rem;
-    line-height: 1;
-}
-
-.topbar-install-btn {
-    display: inline-flex;
+.pwa-install-float {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 132px;
+    z-index: 550;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 4px;
-    height: 32px;
-    padding: 0 10px;
-    border: 1px solid rgba(201, 165, 92, 0.45);
+    gap: 10px 12px;
+    padding: 12px 40px 12px 14px;
+    border: 1px solid rgba(201, 165, 92, 0.35);
     border-radius: 16px;
-    background: rgba(201, 165, 92, 0.12);
-    color: var(--accent);
-    font-size: 0.72rem;
-    font-weight: 700;
-    cursor: pointer;
-    flex-shrink: 0;
-    white-space: nowrap;
+    background: rgba(20, 16, 14, 0.96);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
-.topbar-install-btn__icon {
+.pwa-install-float__close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--muted);
     font-size: 0.85rem;
-    line-height: 1;
+    cursor: pointer;
+}
+
+.pwa-install-float__body {
+    flex: 1 1 160px;
+    min-width: 0;
+}
+
+.pwa-install-float__title {
+    display: block;
+    font-size: 0.92rem;
+    color: var(--accent);
+    margin-bottom: 2px;
+}
+
+.pwa-install-float__text {
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.35;
+}
+
+.pwa-install-float__actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .pwa-install-modal .pwa-install-steps {

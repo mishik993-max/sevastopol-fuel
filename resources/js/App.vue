@@ -419,7 +419,6 @@ async function onStationClosed() {
             <div class="topbar-row">
                 <h1>Топливо</h1>
                 <div class="topbar-actions">
-                    <PwaInstallButton />
                     <button type="button" class="topbar-icon-btn" data-tour="help" title="Справочник" @click="showHelp = true">
                         ?
                     </button>
@@ -428,15 +427,6 @@ async function onStationClosed() {
                     </button>
                     <button type="button" class="topbar-icon-btn" title="Обратная связь" @click="showFeedback = true">
                         ✉
-                    </button>
-                    <button
-                        type="button"
-                        class="topbar-icon-btn topbar-icon-btn--refresh"
-                        title="Обновить страницу"
-                        aria-label="Обновить страницу"
-                        @click="reloadPage"
-                    >
-                        ↻
                     </button>
                     <span v-if="filteredStations.length" class="station-count">{{ filteredStations.length }}</span>
                     <div class="view-toggle" data-tour="view">
@@ -572,12 +562,25 @@ async function onStationClosed() {
             <button
                 v-show="viewMode === 'map' && !showAddStation && !showEditStation"
                 type="button"
+                class="map-fab map-fab--refresh"
+                title="Обновить страницу"
+                aria-label="Обновить страницу"
+                @click="reloadPage"
+            >
+                ↻
+            </button>
+
+            <button
+                v-show="viewMode === 'map' && !showAddStation && !showEditStation"
+                type="button"
                 class="map-fab map-fab--add"
                 title="Добавить АЗС"
                 @click="openAddStation"
             >
                 +
             </button>
+
+            <PwaInstallButton v-show="viewMode === 'map'" />
 
             <div v-if="loading" class="loading-badge">Загрузка…</div>
             <div v-if="geoNotice" class="notice-badge">{{ geoNotice }}</div>
