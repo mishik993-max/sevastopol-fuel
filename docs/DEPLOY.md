@@ -4,12 +4,24 @@
 
 ## 1. Подготовка сервера
 
-Нужен **PHP 8.3**. На Ubuntu 22.04 сначала PPA (иначе `Unable to locate package php8.3-fpm`):
+Нужен **PHP 8.3+** (`composer.json`). При создании VPS выбирайте **Ubuntu 24.04 LTS** (рекомендуется) или **22.04 LTS**.
+
+> **Не используйте Ubuntu 26.04** для этой инструкции: PPA `ondrej/php` для неё не опубликован (ошибка `404 ... resolute`), пакетов `php8.3-`* в apt нет.
+
+Сначала проверьте ОС:
+
+```bash
+cat /etc/os-release | grep -E '^(VERSION_ID|VERSION_CODENAME)='
+```
+
+### Ubuntu 22.04 / 24.04
+
+На **22.04** пакетов `php8.3-`* в стандартных репозиториях нет — нужен PPA. На **24.04** PHP 8.3 часто уже есть без PPA; если `apt install php8.3-fpm` находит пакет, PPA можно не добавлять.
 
 ```bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y software-properties-common
-sudo add-apt-repository ppa:ondrej/php -y
+sudo add-apt-repository ppa:ondrej/php -y   # только 22.04/24.04; на 26.04 — ошибка 404
 sudo apt update
 sudo apt install -y nginx mysql-server \
   php8.3-fpm php8.3-cli php8.3-mysql php8.3-mbstring php8.3-xml php8.3-curl \
@@ -18,6 +30,27 @@ curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 php -v   # 8.3.x
 ```
+
+### Ubuntu 26.04 (если VPS уже на ней)
+
+Удалите сломанный PPA (если добавляли) и ставьте PHP из стандартных репозиториев (обычно **8.4** или **8.5** — для проекта подходит):
+
+```bash
+sudo add-apt-repository --remove ppa:ondrej/php -y 2>/dev/null || true
+sudo rm -f /etc/apt/sources.list.d/ondrej-ubuntu-php-*
+sudo apt update
+apt-cache search '^php[0-9]' | grep -E 'fpm$'   # смотрим версию, например php8.4-fpm
+
+PHPV=8.4   # подставьте версию из вывода выше
+sudo apt install -y nginx mysql-server \
+  php${PHPV}-fpm php${PHPV}-cli php${PHPV}-mysql php${PHPV}-mbstring php${PHPV}-xml php${PHPV}-curl \
+  php${PHPV}-zip php${PHPV}-gd php${PHPV}-bcmath php${PHPV}-intl unzip git curl
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+php -v
+```
+
+В конфиге Nginx (§7) замените сокет: `php8.3-fpm.sock` → `php${PHPV}-fpm.sock` (например `php8.4-fpm.sock`).
 
 Установите Composer:
 
@@ -180,12 +213,14 @@ php artisan notifications:qr-reminder-tick
 
 Редактируются без изменения кода в `config/notifications.php`:
 
+
 | Слот  | Время |
-|-------|-------|
+| ----- | ----- |
 | 21_30 | 21:30 |
 | 21_45 | 21:45 |
 | 21_55 | 21:55 |
 | 22_00 | 22:00 |
+
 
 После правки: `php artisan config:cache`
 
@@ -204,15 +239,15 @@ php artisan view:cache
 
 ## 12. Чеклист после деплоя
 
-- [ ] `https://fuel.example.com` открывается, карта загружается
-- [ ] `/api/stations` возвращает JSON с АЗС
-- [ ] Можно отправить отчёт «Сообщить»
-- [ ] Кнопка «Подтверждаю» работает
-- [ ] Push-подписка запрашивает разрешение (HTTPS обязателен)
-- [ ] `php artisan schedule:list` показывает `notifications:qr-reminder-tick`
-- [ ] Cron настроен для `www-data`
-- [ ] `/admin` — модерация отчётов и импорт OSM работают
-- [ ] Фото отчётов открываются (`storage:link`)
+- `https://fuel.example.com` открывается, карта загружается
+- `/api/stations` возвращает JSON с АЗС
+- Можно отправить отчёт «Сообщить»
+- Кнопка «Подтверждаю» работает
+- Push-подписка запрашивает разрешение (HTTPS обязателен)
+- `php artisan schedule:list` показывает `notifications:qr-reminder-tick`
+- Cron настроен для `www-data`
+- `/admin` — модерация отчётов и импорт OSM работают
+- Фото отчётов открываются (`storage:link`)
 
 ## Примечания
 
@@ -221,3 +256,4 @@ php artisan view:cache
 - Загрузка фото: до 2 МБ, jpg/png, хранятся в `storage/app/public/reports/`.
 - Полная инструкция с покупки VPS: [VPS-SETUP.md](VPS-SETUP.md).
 - Нагрузочные тесты: [LOAD-TEST.md](LOAD-TEST.md).
+

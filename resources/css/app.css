@@ -1629,6 +1629,50 @@ body {
     flex-shrink: 0;
 }
 
+.topbar-icon-btn--refresh {
+    font-size: 1.05rem;
+    line-height: 1;
+}
+
+.topbar-install-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid rgba(201, 165, 92, 0.45);
+    border-radius: 16px;
+    background: rgba(201, 165, 92, 0.12);
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.topbar-install-btn__icon {
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.pwa-install-modal .pwa-install-steps {
+    margin: 12px 0 16px;
+    padding-left: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.pwa-install-note {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 16px;
+    line-height: 1.4;
+}
+
 .tour-overlay {
     position: fixed;
     inset: 0;

@@ -51,17 +51,22 @@ ssh deploy@ВАШ_IP
 
 ## 3. Установка зависимостей
 
-Проекту нужен **PHP 8.3+** (`composer.json`). На Ubuntu 22.04 пакетов `php8.3-*` в стандартных репозиториях **нет** — подключаем PPA.
+Проекту нужен **PHP 8.3+** (`composer.json`).
+
+> **Важно:** образ VPS должен быть **Ubuntu 22.04 или 24.04 LTS**. На **Ubuntu 26.04** (`resolute`) PPA `ondrej/php` не работает (404), пакетов `php8.3-*` нет — см. [DEPLOY.md §1](DEPLOY.md#1-подготовка-сервера) или пересоздайте VPS с Ubuntu 24.04.
 
 ```bash
 sudo apt update && sudo apt upgrade -y
+cat /etc/os-release | grep -E '^(VERSION_ID|VERSION_CODENAME)='
+```
 
-# Проверка ОС (для справки)
-cat /etc/os-release
+### Ubuntu 22.04 / 24.04
 
-# PHP 8.3 (Ubuntu 20.04 / 22.04 / 24.04)
+На **22.04** без PPA пакетов `php8.3-*` нет. На **24.04** PHP 8.3 часто уже в стандартных репозиториях — сначала проверьте `apt-cache search php8.3-fpm`.
+
+```bash
 sudo apt install -y software-properties-common
-sudo add-apt-repository ppa:ondrej/php -y
+sudo add-apt-repository ppa:ondrej/php -y   # только 22.04/24.04
 sudo apt update
 
 sudo apt install -y nginx mysql-server \
@@ -75,14 +80,12 @@ curl -sS https://getcomposer.org/installer | php
 sudo mv composer.phar /usr/local/bin/composer
 ```
 
-Если на **Ubuntu 24.04** после `apt update` пакеты `php8.3-*` уже находятся без PPA — PPA не обязателен, но не мешает.
+**Debian** (не Ubuntu): [репозиторий Sury](https://packages.sury.org/php/README.txt) или образ **Ubuntu 22.04/24.04**.
 
-**Debian** (не Ubuntu): вместо PPA — [репозиторий Sury](https://packages.sury.org/php/README.txt), либо выберите образ **Ubuntu 22.04/24.04** при создании VPS.
-
-Проверка:
+Проверка (для PHP 8.3):
 
 ```bash
-php -v          # должно быть 8.3.x
+php -v          # 8.3.x или новее
 php-fpm8.3 -v
 node -v
 composer -V
@@ -299,7 +302,8 @@ php artisan view:cache
 
 | Симптом | Решение |
 |---------|---------|
-| 502 Bad Gateway | `sudo systemctl status php8.3-fpm nginx` |
+| `Unable to locate package php8.3-*` | VPS на Ubuntu 26.04 — PPA не поддерживается; см. [DEPLOY.md §1](DEPLOY.md#ubuntu-2604-если-vps-уже-на-ней) или пересоздайте VPS с **24.04 LTS** |
+| 502 Bad Gateway | `sudo systemctl status php8.3-fpm nginx` (или `php8.4-fpm` на Ubuntu 26.04) |
 | Фото не открываются | `php artisan storage:link`, права на `storage/` |
 | Карта пустая | импорт OSM в админке или `stations:import-osm` |
 | Push не приходит | HTTPS, VAPID в `.env`, cron для `schedule:run` |

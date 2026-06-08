@@ -7,6 +7,7 @@
     <meta name="theme-color" content="#0a0807">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="app-base" content="{{ request()->getSchemeAndHttpHost() . request()->getBaseUrl() }}">
+    <link rel="manifest" href="/build/manifest.webmanifest">
     <title>{{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>

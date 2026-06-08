@@ -8,6 +8,7 @@ import ConfirmButton from './components/ConfirmButton.vue';
 import AddStationForm from './components/AddStationForm.vue';
 import EditStationForm from './components/EditStationForm.vue';
 import PushPrompt from './components/PushPrompt.vue';
+import PwaInstallButton from './components/PwaInstallButton.vue';
 import GeoGate from './components/GeoGate.vue';
 import OnboardingTour from './components/OnboardingTour.vue';
 import HelpGuide from './components/HelpGuide.vue';
@@ -263,6 +264,10 @@ function refreshList() {
     }
 }
 
+function reloadPage() {
+    window.location.reload();
+}
+
 function openAddStation() {
     selectedStation.value = null;
     showReport.value = false;
@@ -414,6 +419,7 @@ async function onStationClosed() {
             <div class="topbar-row">
                 <h1>Топливо</h1>
                 <div class="topbar-actions">
+                    <PwaInstallButton />
                     <button type="button" class="topbar-icon-btn" data-tour="help" title="Справочник" @click="showHelp = true">
                         ?
                     </button>
@@ -422,6 +428,15 @@ async function onStationClosed() {
                     </button>
                     <button type="button" class="topbar-icon-btn" title="Обратная связь" @click="showFeedback = true">
                         ✉
+                    </button>
+                    <button
+                        type="button"
+                        class="topbar-icon-btn topbar-icon-btn--refresh"
+                        title="Обновить страницу"
+                        aria-label="Обновить страницу"
+                        @click="reloadPage"
+                    >
+                        ↻
                     </button>
                     <span v-if="filteredStations.length" class="station-count">{{ filteredStations.length }}</span>
                     <div class="view-toggle" data-tour="view">

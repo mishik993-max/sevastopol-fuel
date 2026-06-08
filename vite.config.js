@@ -32,6 +32,7 @@ export default defineConfig({
                 background_color: '#0a0807',
                 display: 'standalone',
                 start_url: '/',
+                scope: '/',
                 lang: 'ru',
                 icons: [
                     {
