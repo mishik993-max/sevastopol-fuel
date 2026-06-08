@@ -1703,6 +1703,12 @@ body {
     flex-shrink: 0;
 }
 
+.topbar-icon-btn--install {
+    color: var(--accent);
+    border-color: rgba(201, 165, 92, 0.45);
+    background: rgba(201, 165, 92, 0.12);
+}
+
 .pwa-install-modal .pwa-install-steps {
     margin: 12px 0 16px;
     padding-left: 1.2rem;

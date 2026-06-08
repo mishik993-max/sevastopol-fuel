@@ -419,6 +419,7 @@ async function onStationClosed() {
             <div class="topbar-row">
                 <h1>Топливо</h1>
                 <div class="topbar-actions">
+                    <PwaInstallButton mode="topbar" />
                     <button type="button" class="topbar-icon-btn" data-tour="help" title="Справочник" @click="showHelp = true">
                         ?
                     </button>
@@ -580,7 +581,7 @@ async function onStationClosed() {
                 +
             </button>
 
-            <PwaInstallButton v-show="viewMode === 'map'" />
+            <PwaInstallButton v-show="viewMode === 'map'" mode="float" />
 
             <div v-if="loading" class="loading-badge">Загрузка…</div>
             <div v-if="geoNotice" class="notice-badge">{{ geoNotice }}</div>

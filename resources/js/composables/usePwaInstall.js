@@ -1,4 +1,6 @@
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+
+const DISMISS_KEY = 'pwa_install_dismissed';
 
 function isStandalone() {
     return window.matchMedia('(display-mode: standalone)').matches
@@ -14,56 +16,54 @@ function isAndroid() {
     return /android/i.test(navigator.userAgent);
 }
 
+const deferredPrompt = ref(null);
+const installed = ref(false);
+const showHint = ref(false);
+const hintMode = ref('ios');
+const dismissed = ref(false);
+let listenersBound = false;
+
+const canInstall = computed(() => {
+    if (installed.value || !window.isSecureContext) {
+        return false;
+    }
+
+    if (deferredPrompt.value) {
+        return true;
+    }
+
+    return isIos() || isAndroid();
+});
+
+const promptVisible = computed(() => canInstall.value && !dismissed.value);
+
+const showReopenTrigger = computed(() => canInstall.value && dismissed.value);
+
+function bindListeners() {
+    if (listenersBound || typeof window === 'undefined') {
+        return;
+    }
+
+    listenersBound = true;
+    installed.value = isStandalone();
+    dismissed.value = !!localStorage.getItem(DISMISS_KEY);
+
+    window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        deferredPrompt.value = event;
+    });
+
+    window.addEventListener('appinstalled', () => {
+        installed.value = true;
+        deferredPrompt.value = null;
+        showHint.value = false;
+        dismissed.value = false;
+        localStorage.removeItem(DISMISS_KEY);
+    });
+}
+
 export function usePwaInstall() {
-    const deferredPrompt = ref(null);
-    const installed = ref(isStandalone());
-    const showHint = ref(false);
-    const hintMode = ref('ios');
-
-    let promptHandler = null;
-    let installedHandler = null;
-
-    const canInstall = computed(() => {
-        if (installed.value || !window.isSecureContext) {
-            return false;
-        }
-
-        if (deferredPrompt.value) {
-            return true;
-        }
-
-        return isIos() || isAndroid();
-    });
-
-    const usesNativePrompt = computed(() => !!deferredPrompt.value);
-
-    onMounted(() => {
-        installed.value = isStandalone();
-
-        promptHandler = (event) => {
-            event.preventDefault();
-            deferredPrompt.value = event;
-        };
-
-        installedHandler = () => {
-            installed.value = true;
-            deferredPrompt.value = null;
-            showHint.value = false;
-        };
-
-        window.addEventListener('beforeinstallprompt', promptHandler);
-        window.addEventListener('appinstalled', installedHandler);
-    });
-
-    onUnmounted(() => {
-        if (promptHandler) {
-            window.removeEventListener('beforeinstallprompt', promptHandler);
-        }
-
-        if (installedHandler) {
-            window.removeEventListener('appinstalled', installedHandler);
-        }
-    });
+    onMounted(bindListeners);
 
     async function install() {
         if (deferredPrompt.value) {
@@ -90,16 +90,29 @@ export function usePwaInstall() {
         }
     }
 
+    function dismissPrompt() {
+        dismissed.value = true;
+        localStorage.setItem(DISMISS_KEY, '1');
+    }
+
+    function reopenPrompt() {
+        dismissed.value = false;
+        localStorage.removeItem(DISMISS_KEY);
+    }
+
     function closeHint() {
         showHint.value = false;
     }
 
     return {
         canInstall,
-        usesNativePrompt,
+        promptVisible,
+        showReopenTrigger,
         showHint,
         hintMode,
         install,
+        dismissPrompt,
+        reopenPrompt,
         closeHint,
     };
 }
