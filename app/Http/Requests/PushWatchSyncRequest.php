@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\FuelType;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
-class PushSubscribeRequest extends FormRequest
+class PushWatchSyncRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -17,9 +19,9 @@ class PushSubscribeRequest extends FormRequest
         return [
             'endpoint' => ['required', 'string', 'max:500'],
             'client_id' => ['nullable', 'uuid'],
-            'keys' => ['required', 'array'],
-            'keys.p256dh' => ['required', 'string'],
-            'keys.auth' => ['required', 'string'],
+            'station_ids' => ['present', 'array', 'max:7'],
+            'station_ids.*' => ['integer', 'min:1'],
+            'fuel_type' => ['required', 'string', Rule::enum(FuelType::class)],
         ];
     }
 }

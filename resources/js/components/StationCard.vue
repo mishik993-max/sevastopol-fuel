@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { FUEL_TYPES } from '../constants';
+import { useFavoriteStations } from '../composables/useFavoriteStations';
 import PhotoLightbox from './PhotoLightbox.vue';
 import UiIcon from './UiIcon.vue';
 
@@ -22,6 +23,12 @@ const emit = defineEmits([
 ]);
 
 const lightboxSrc = ref(null);
+const favoriteError = ref(null);
+const { isFavorite, toggle } = useFavoriteStations();
+
+const favorite = computed(() => isFavorite(props.station.id));
+const favoritePop = ref(false);
+let favoritePopTimer = null;
 
 const displayTitle = computed(() => {
     const name = (props.station.name || '').trim();
@@ -154,38 +161,70 @@ function confirmCorrectionLabel(item) {
 function openPhoto(url) {
     lightboxSrc.value = url;
 }
+
+function onToggleFavorite() {
+    favoriteError.value = null;
+
+    try {
+        toggle(props.station.id);
+        favoritePop.value = true;
+        clearTimeout(favoritePopTimer);
+        favoritePopTimer = setTimeout(() => {
+            favoritePop.value = false;
+        }, 360);
+    } catch (e) {
+        favoriteError.value = e.message;
+    }
+}
 </script>
 
 <template>
     <div class="station-sheet">
         <div class="sheet-handle" aria-hidden="true" />
 
-        <button class="sheet-close" type="button" aria-label="Закрыть" @click="emit('close')">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-        </button>
+        <div class="sheet-toolbar">
+            <button
+                type="button"
+                class="sheet-toolbar-btn sheet-toolbar-btn--favorite"
+                :class="{ 'is-active': favorite, 'is-pop': favoritePop }"
+                :aria-pressed="favorite"
+                :aria-label="favorite ? 'Убрать из избранного' : 'В избранное'"
+                @click.stop="onToggleFavorite"
+            >
+                <UiIcon
+                    name="star"
+                    :size="16"
+                    :color="favorite ? '#E8B84B' : '#7A7570'"
+                    :fill="favorite ? '#E8B84B' : 'none'"
+                />
+            </button>
+            <button
+                type="button"
+                class="sheet-toolbar-btn"
+                aria-label="Закрыть"
+                @click="emit('close')"
+            >
+                <UiIcon name="x" :size="16" color="#7A7570" />
+            </button>
+        </div>
 
         <div class="station-sheet-body">
             <header class="station-head station-head--figma">
-                <div class="station-head-top">
-                    <div>
-                        <h2 class="station-title">{{ displayTitle }}</h2>
-                        <div class="station-head-meta">
-                            <span v-if="showNetwork" class="station-network-badge">{{ station.network }}</span>
-                            <span class="station-address-inline">{{ station.address }}</span>
-                        </div>
-                    </div>
+                <h2 class="station-title">{{ displayTitle }}</h2>
+                <div class="station-head-meta">
+                    <span v-if="showNetwork" class="station-network-badge">{{ station.network }}</span>
+                    <span class="station-address-inline">{{ station.address }}</span>
                     <button
                         v-if="station.distance_m"
                         type="button"
-                        class="station-nav-btn"
+                        class="station-nav-btn station-nav-btn--inline"
                         @click.stop
                     >
                         <UiIcon name="navigation" :size="11" color="currentColor" />
                         {{ Math.round(station.distance_m / 100) / 10 }} км
                     </button>
                 </div>
+                <p v-if="favoriteError" class="station-favorite-error">{{ favoriteError }}</p>
             </header>
 
             <section v-if="activeFuel" class="status-card" :class="`status-card--${activeFuel.status}`">

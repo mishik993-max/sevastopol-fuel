@@ -425,6 +425,18 @@ body {
     border-radius: 8px;
 }
 
+.favorites-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.favorites-filter-btn.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #0a0807;
+}
+
 @media (min-width: 641px) {
     .filter-toggle-btn {
         display: none;
@@ -794,21 +806,50 @@ body {
     flex-shrink: 0;
 }
 
-.sheet-close {
+.sheet-toolbar {
     position: absolute;
     top: 10px;
     right: 12px;
-    z-index: 2;
-    width: 36px;
-    height: 36px;
+    z-index: 3;
     display: flex;
     align-items: center;
+    gap: 8px;
+}
+
+.sheet-toolbar-btn {
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-    border: none;
-    border-radius: 50%;
-    background: var(--surface2);
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
     color: var(--muted);
     cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+}
+
+.sheet-toolbar-btn:active {
+    transform: scale(0.94);
+}
+
+.sheet-toolbar-btn--favorite.is-active {
+    border-color: rgba(232, 184, 75, 0.4);
+    background: rgba(232, 184, 75, 0.14);
+    box-shadow: 0 0 0 1px rgba(232, 184, 75, 0.12);
+}
+
+.sheet-toolbar-btn--favorite.is-pop {
+    animation: sheet-favorite-pop 0.36s ease;
+}
+
+@keyframes sheet-favorite-pop {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.14); }
+    100% { transform: scale(1); }
 }
 
 .station-sheet-body {
@@ -819,7 +860,7 @@ body {
 }
 
 .station-head {
-    padding-right: 40px;
+    padding-right: 92px;
     margin-bottom: 14px;
     padding-bottom: 14px;
     border-bottom: 1px solid var(--border);
@@ -3750,6 +3791,14 @@ body {
     font-family: var(--font-display);
     font-size: 1rem;
     font-weight: 700;
+    margin: 0 0 6px;
+}
+
+.station-head--figma .station-head-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
 }
 
 .station-nav-btn {
@@ -3764,6 +3813,21 @@ body {
     font-size: 0.6875rem;
     font-weight: 600;
     cursor: pointer;
+}
+
+.station-nav-btn--inline {
+    margin-left: auto;
+}
+
+.station-favorite-error {
+    margin: 8px 0 0;
+    font-size: 0.72rem;
+    color: #f87171;
+}
+
+.station-list-favorite-star {
+    margin-right: 4px;
+    vertical-align: -1px;
 }
 
 .pwa-install-modal__head {

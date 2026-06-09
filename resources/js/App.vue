@@ -27,6 +27,9 @@ import { readGeoGate, saveGeoGate } from './composables/useGeoGate';
 import { readCookieConsent, saveCookieConsent } from './composables/useCookieConsent';
 import { isInBbox, loadAppSettings, useAppSettings } from './composables/useAppSettings';
 import { useShare } from './composables/useShare';
+import { useFavoriteStations } from './composables/useFavoriteStations';
+import { syncFavoritePushWatches } from './composables/useFavoritePushWatches';
+import { usePushNotifications } from './composables/usePushNotifications';
 
 const { stations, loading, error, fetchStations, fetchNearby, fetchStation } = useStations();
 const { position, locate, loading: geoLoading, resolved: geoResolved, error: geoError } = useGeolocation();
@@ -42,11 +45,15 @@ const legalDocId = ref('privacy');
 const settingsReady = ref(false);
 const { networkPriority, mapCenter } = useAppSettings();
 const { canShare, share } = useShare();
+const { favoriteIds, count: favoriteCount, isFavorite } = useFavoriteStations();
+const { subscribed: pushSubscribed } = usePushNotifications();
 const shareLoading = ref(false);
+const pendingDeepLinkStationId = ref(null);
 
 const selectedFuel = ref('a95');
 const selectedNetwork = ref(null);
 const selectedSaleType = ref(null);
+const favoritesOnly = ref(false);
 const filtersOpen = ref(false);
 const cookieConsentGranted = ref(readCookieConsent());
 const selectedStation = ref(null);
@@ -167,14 +174,67 @@ const filteredStations = computed(() => {
         });
     }
 
+    if (favoritesOnly.value) {
+        list = list.filter((s) => isFavorite(s.id));
+    }
+
     return list;
 });
 
 function initApp() {
+    applyQueryFuelFromUrl();
     fetchStations(selectedFuel.value);
     locate().catch(() => {
         // геолокация для карты необязательна после прохождения геозоны
     });
+}
+
+function applyQueryFuelFromUrl() {
+    const fuel = new URLSearchParams(window.location.search).get('fuel');
+
+    if (fuel && FUEL_TYPES.some((item) => item.value === fuel)) {
+        selectedFuel.value = fuel;
+    }
+}
+
+function readDeepLinkStationId() {
+    const stationId = Number(new URLSearchParams(window.location.search).get('station'));
+
+    return stationId > 0 ? stationId : null;
+}
+
+function clearDeepLinkFromUrl() {
+    const url = new URL(window.location.href);
+
+    if (!url.searchParams.has('station') && !url.searchParams.has('fuel')) {
+        return;
+    }
+
+    url.searchParams.delete('station');
+    url.searchParams.delete('fuel');
+    const next = url.pathname + (url.search || '') + url.hash;
+    window.history.replaceState({}, '', next);
+}
+
+async function openDeepLinkStation(stationId) {
+    viewMode.value = 'map';
+
+    let station = stations.value.find((item) => item.id === stationId);
+
+    if (!station) {
+        try {
+            station = await fetchStation(stationId, selectedFuel.value);
+        } catch {
+            return;
+        }
+    }
+
+    await selectStation(station);
+    clearDeepLinkFromUrl();
+}
+
+function syncPushWatches() {
+    syncFavoritePushWatches(favoriteIds.value, selectedFuel.value);
 }
 
 function onGeoGateGranted() {
@@ -208,6 +268,8 @@ function startTour() {
 }
 
 onMounted(async () => {
+    pendingDeepLinkStationId.value = readDeepLinkStationId();
+
     if (!isAdminRoute.value) {
         await loadAppSettings();
         settingsReady.value = true;
@@ -215,10 +277,29 @@ onMounted(async () => {
 
     if (geoAccessGranted.value && !isAdminRoute.value) {
         initApp();
+        syncPushWatches();
 
         if (!localStorage.getItem('onboarding_done')) {
             showOnboarding.value = true;
         }
+    }
+});
+
+watch(stations, async (list) => {
+    if (!pendingDeepLinkStationId.value || list.length === 0) {
+        return;
+    }
+
+    const stationId = pendingDeepLinkStationId.value;
+    pendingDeepLinkStationId.value = null;
+    await openDeepLinkStation(stationId);
+});
+
+watch([favoriteIds, selectedFuel], syncPushWatches, { deep: true });
+
+watch(pushSubscribed, (active) => {
+    if (active) {
+        syncPushWatches();
     }
 });
 
@@ -228,6 +309,12 @@ watch([selectedNetwork, selectedSaleType], () => {
         && !filteredStations.value.some((s) => s.id === selectedStation.value.id)
     ) {
         selectedStation.value = null;
+    }
+});
+
+watch(favoriteCount, (count) => {
+    if (count === 0) {
+        favoritesOnly.value = false;
     }
 });
 
@@ -508,6 +595,7 @@ async function onStationClosed() {
                 <div v-if="filteredStations.length" class="station-count-pill">
                     <UiIcon name="map-pin" :size="10" color="currentColor" />
                     {{ filteredStations.length }} АЗС
+                    <template v-if="favoritesOnly"> · мои</template>
                 </div>
 
                 <div class="view-toggle" data-tour="view">
@@ -597,6 +685,22 @@ async function onStationClosed() {
                     <span class="filter-row-divider" aria-hidden="true"></span>
                     <button
                         type="button"
+                        class="network-btn network-btn--compact favorites-filter-btn"
+                        :class="{ active: favoritesOnly }"
+                        :disabled="favoriteCount === 0 && !favoritesOnly"
+                        @click="favoritesOnly = !favoritesOnly"
+                    >
+                        <UiIcon
+                            name="star"
+                            :size="10"
+                            :color="favoritesOnly ? '#0A0807' : '#E8B84B'"
+                            :fill="favoritesOnly ? '#0A0807' : '#E8B84B'"
+                        />
+                        Мои АЗС
+                        <span v-if="favoriteCount" class="network-count">{{ favoriteCount }}</span>
+                    </button>
+                    <button
+                        type="button"
                         class="network-btn network-btn--compact"
                         data-tour="network"
                         :class="{ active: selectedNetwork === null }"
@@ -626,6 +730,7 @@ async function onStationClosed() {
                 ref="mapViewRef"
                 v-show="viewMode === 'map'"
                 :stations="filteredStations"
+                :favorite-ids="favoriteIds"
                 :selected-id="selectedStation?.id"
                 :user-position="position"
                 :geo-resolved="geoResolved"
@@ -645,6 +750,7 @@ async function onStationClosed() {
                 :selected-fuel="selectedFuel"
                 :user-position="position"
                 :sort-by-distance="viewMode === 'list' && !!position"
+                :favorites-only="favoritesOnly"
                 @select="selectStation"
             />
 

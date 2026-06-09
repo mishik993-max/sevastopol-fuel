@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { distanceM, FUEL_TYPES } from '../constants';
+import { useFavoriteStations } from '../composables/useFavoriteStations';
 import UiIcon from './UiIcon.vue';
 
 const props = defineProps({
@@ -9,9 +10,12 @@ const props = defineProps({
     selectedFuel: { type: String, default: 'a95' },
     userPosition: { type: Object, default: null },
     sortByDistance: { type: Boolean, default: false },
+    favoritesOnly: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['select']);
+
+const { isFavorite } = useFavoriteStations();
 
 const STATUS_COLORS = {
     available: '#22C55E',
@@ -117,7 +121,17 @@ function freshnessShort(station) {
                 @click="emit('select', station)"
             >
                 <div class="station-list-card-head">
-                    <span class="station-list-network">{{ station.network }}</span>
+                    <span class="station-list-network">
+                        <UiIcon
+                            v-if="isFavorite(station.id)"
+                            name="star"
+                            :size="11"
+                            color="#E8B84B"
+                            fill="#E8B84B"
+                            class="station-list-favorite-star"
+                        />
+                        {{ station.network }}
+                    </span>
                     <div class="station-list-card-main">
                         <div class="station-list-title">{{ displayTitle(station) }}</div>
                         <div class="station-list-address">{{ station.address }}</div>
@@ -145,7 +159,9 @@ function freshnessShort(station) {
                 </div>
             </button>
         </div>
-        <p v-else class="station-list-empty">Нет АЗС по выбранным фильтрам</p>
+        <p v-else class="station-list-empty">
+            {{ favoritesOnly ? 'Нет избранных АЗС. Нажмите ★ на карточке заправки.' : 'Нет АЗС по выбранным фильтрам' }}
+        </p>
         <p v-if="sortedStations.length" class="station-list-footer">
             Показано {{ sortedStations.length }} АЗС
         </p>

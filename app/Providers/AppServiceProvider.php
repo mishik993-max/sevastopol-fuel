@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Report;
+use App\Observers\ReportObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -22,6 +24,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Report::observe(ReportObserver::class);
+
         RateLimiter::for('admin-api', function (Request $request) {
             return Limit::perMinute(120)->by($request->ip());
         });

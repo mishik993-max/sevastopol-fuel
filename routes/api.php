@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\PushController;
+use App\Http\Controllers\Api\PushWatchController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\StatsController;
 use App\Http\Controllers\Api\ReportController;
@@ -31,6 +32,8 @@ Route::middleware('throttle:60,1')->group(function () {
     Route::get('/push/vapid-public-key', [PushController::class, 'vapidPublicKey']);
     Route::post('/push/subscribe', [PushController::class, 'subscribe']);
     Route::delete('/push/unsubscribe', [PushController::class, 'unsubscribe']);
+    Route::put('/push/watches', [PushWatchController::class, 'sync'])->middleware('throttle:30,1');
+    Route::delete('/push/watches', [PushWatchController::class, 'destroy'])->middleware('throttle:30,1');
 });
 
 Route::post('/admin/login', [AdminController::class, 'login']);

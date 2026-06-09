@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { apiUrl } from '../api';
 import { waitForServiceWorker } from '../swRegister';
+import { getPushClientId } from './usePushClientId';
 
 const subscribed = ref(false);
 const permissionState = ref(
@@ -80,6 +81,7 @@ export function usePushNotifications() {
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
             body: JSON.stringify({
                 endpoint: json.endpoint,
+                client_id: getPushClientId(),
                 keys: json.keys,
             }),
         });
@@ -117,6 +119,7 @@ export function usePushNotifications() {
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
                 body: JSON.stringify({
                     endpoint: json.endpoint,
+                    client_id: getPushClientId(),
                     keys: json.keys,
                 }),
             });

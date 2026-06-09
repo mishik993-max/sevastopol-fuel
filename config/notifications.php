@@ -9,6 +9,10 @@ return [
         'private_key' => env('VAPID_PRIVATE_KEY'),
     ],
 
+    'fuel_push' => [
+        'cooldown_minutes' => (int) env('FUEL_PUSH_COOLDOWN_MINUTES', 45),
+    ],
+
     'qr_reminders' => [
         '21_30' => [
             'title' => 'Скоро QR на топливо',

@@ -1,8 +1,9 @@
 <script setup>
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { MARKER_COLORS, queueMarkerColor } from '../constants';
+import { queueMarkerColor } from '../constants';
 import { isInBbox } from '../composables/useAppSettings';
 import { useYandexMaps } from '../composables/useYandexMaps';
+import { markerFillColor, markerIconLayoutOptions } from '../map/stationMarkerIcon';
 
 const props = defineProps({
     stations: { type: Array, default: () => [] },
@@ -14,6 +15,7 @@ const props = defineProps({
     pickCoords: { type: Object, default: null },
     mapCenter: { type: Array, default: () => [44.605, 33.522] },
     mapLayer: { type: String, default: 'fuel' },
+    favoriteIds: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['select', 'pick']);
@@ -29,6 +31,7 @@ let userPlacemark = null;
 let pickPlacemark = null;
 let mapClickHandler = null;
 let queueCircles = [];
+let selectedPulseCircles = [];
 const marginAccessors = [];
 
 const cityCenter = () => props.mapCenter;
@@ -71,6 +74,7 @@ onMounted(async () => {
 onUnmounted(() => {
     clearMapMargins();
     clearQueueCircles();
+    clearSelectedPulse();
     setupMapClick(false);
     map?.destroy();
     map = null;
@@ -78,6 +82,8 @@ onUnmounted(() => {
 
 watch(() => props.stations, renderMapLayers, { deep: true });
 watch(() => props.mapLayer, renderMapLayers);
+watch(() => props.favoriteIds, renderMapLayers);
+watch(() => props.selectedId, renderMapLayers);
 watch(() => [props.selectedId, props.sheetHeight], focusSelected);
 watch(() => props.sheetHeight, updateMapMargins);
 watch(() => props.userPosition, () => {
@@ -116,18 +122,6 @@ function updateMapMargins() {
             height: `${bottomPct}%`,
         }));
     }
-}
-
-function markerColor(color) {
-    return MARKER_COLORS[color] || MARKER_COLORS.black;
-}
-
-function placemarkIconColor(station) {
-    if (props.mapLayer === 'queue') {
-        return queueMarkerColor(station.queue_size);
-    }
-
-    return markerColor(station.marker_color);
 }
 
 function clearQueueCircles() {
@@ -192,7 +186,56 @@ function renderMapLayers() {
     }
 
     renderQueueCircles();
+    renderSelectedPulse();
     renderMarkers();
+}
+
+function clearSelectedPulse() {
+    if (!map) {
+        selectedPulseCircles = [];
+        return;
+    }
+
+    selectedPulseCircles.forEach((circle) => map.geoObjects.remove(circle));
+    selectedPulseCircles = [];
+}
+
+function renderSelectedPulse() {
+    clearSelectedPulse();
+
+    if (!map || !ymaps || !props.selectedId || props.mapLayer === 'queue') {
+        return;
+    }
+
+    const station = props.stations.find((s) => s.id === props.selectedId);
+    if (!station) {
+        return;
+    }
+
+    const coords = stationCoords(station);
+    const color = markerFillColor(station.marker_color);
+
+    [
+        [28, 0.4, 2],
+        [40, 0.2, 1],
+    ].forEach(([radius, strokeOpacity, strokeWidth]) => {
+        const circle = new ymaps.Circle(
+            [coords, radius],
+            {},
+            {
+                fillColor: color,
+                fillOpacity: 0,
+                strokeColor: color,
+                strokeOpacity,
+                strokeWidth,
+                zIndex: 90,
+            },
+        );
+
+        circle.events.add('click', () => emit('select', station));
+        map.geoObjects.add(circle);
+        selectedPulseCircles.push(circle);
+    });
 }
 
 function invalidateSize() {
@@ -220,13 +263,16 @@ function renderMarkers() {
 
     props.stations.forEach((station) => {
         const selected = station.id === props.selectedId;
+        const isFavorite = props.favoriteIds.includes(station.id);
         const placemark = new ymaps.Placemark(
             stationCoords(station),
             {},
             {
-                preset: 'islands#circleDotIcon',
-                iconColor: placemarkIconColor(station),
-                zIndex: selected ? 1000 : 100,
+                ...markerIconLayoutOptions(station, {
+                    favorite: isFavorite,
+                    mapLayer: props.mapLayer,
+                }),
+                zIndex: selected ? 1000 : (isFavorite ? 650 : 100),
             },
         );
 

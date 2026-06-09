@@ -39,13 +39,14 @@ self.addEventListener('push', (event) => {
     }
 
     const targetUrl = resolveNotificationUrl(data.url);
+    const notificationTag = data.tag || 'sevazs-notification';
 
     event.waitUntil(
         self.registration.showNotification(data.title, {
             body: data.body,
             icon: data.icon || NOTIFICATION_ICON,
             badge: NOTIFICATION_BADGE,
-            tag: 'sevazs-qr',
+            tag: notificationTag,
             data: { url: targetUrl },
         })
     );

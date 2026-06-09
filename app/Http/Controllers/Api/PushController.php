@@ -28,6 +28,7 @@ class PushController extends Controller
             $request->validated('endpoint'),
             $request->input('keys.p256dh'),
             $request->input('keys.auth'),
+            $request->validated('client_id'),
         );
 
         return response()->json(['message' => 'Подписка сохранена']);
