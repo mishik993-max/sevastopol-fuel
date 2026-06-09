@@ -182,7 +182,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d sevazs.su
+sudo certbot --nginx -d sevazs.ru
 ```
 
 **Без домена (только IP):** Let's Encrypt на IP (~6 дней) или самоподписанный сертификат — [DOMAIN-AND-SSL.md §2](DOMAIN-AND-SSL.md#2-запуск-без-домена-только-ip).  

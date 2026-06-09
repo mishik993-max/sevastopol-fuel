@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Севастополь Топливо — выбор палитры</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #111;
+            color: #ddd;
+            line-height: 1.45;
+            padding: 24px 16px 48px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 6px;
+        }
+
+        .lead {
+            color: #999;
+            max-width: 720px;
+            margin-bottom: 28px;
+            font-size: 0.95rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+            max-width: 1400px;
+        }
+
+        .theme-card {
+            border: 2px solid #333;
+            border-radius: 16px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .theme-card:hover {
+            transform: translateY(-2px);
+            border-color: #666;
+        }
+
+        .theme-card.selected {
+            border-color: #fff;
+            box-shadow: 0 0 0 1px #fff, 0 12px 40px rgba(0,0,0,0.5);
+        }
+
+        .theme-head {
+            padding: 14px 16px 10px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px 8px;
+        }
+
+        .theme-name {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .theme-tag {
+            font-size: 0.72rem;
+            opacity: 0.75;
+            flex: 1 1 100%;
+        }
+
+        .swatches {
+            display: flex;
+            gap: 4px;
+            padding: 0 16px 12px;
+        }
+
+        .swatch {
+            flex: 1;
+            height: 28px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .preview {
+            padding: 12px;
+            min-height: 220px;
+        }
+
+        .mock-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .mock-icons {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .mock-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-size: 0.65rem;
+            border: 1px solid;
+        }
+
+        .mock-toggle {
+            display: flex;
+            padding: 2px;
+            border-radius: 8px;
+            gap: 2px;
+        }
+
+        .mock-toggle span {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            font-weight: 600;
+        }
+
+        .mock-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+
+        .mock-chip {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            border: 1px solid;
+        }
+
+        .mock-map {
+            height: 72px;
+            border-radius: 10px;
+            position: relative;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .mock-marker {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.5);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        .mock-sheet {
+            border-radius: 12px 12px 0 0;
+            padding: 10px 12px;
+            font-size: 0.75rem;
+        }
+
+        .mock-sheet strong { display: block; margin-bottom: 4px; font-size: 0.85rem; }
+
+        .mock-btns {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .mock-btn {
+            flex: 1;
+            padding: 6px 8px;
+            border-radius: 8px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-align: center;
+            border: none;
+        }
+
+        .markers-row {
+            display: flex;
+            gap: 8px;
+            padding: 8px 16px 12px;
+            font-size: 0.65rem;
+            flex-wrap: wrap;
+        }
+
+        .markers-row span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            padding: 14px 20px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            z-index: 10;
+        }
+
+        .panel.visible { display: flex; }
+
+        .panel code {
+            background: #000;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.72rem;
+            max-width: 100%;
+            overflow-x: auto;
+            display: block;
+        }
+
+        .panel-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .panel button {
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .btn-copy { background: #fff; color: #111; }
+        .btn-clear { background: #333; color: #fff; }
+
+        .section-block {
+            grid-column: 1 / -1;
+            margin-top: 8px;
+            padding-top: 8px;
+        }
+
+        .section-block:first-child { margin-top: 0; }
+
+        .section-block h2 {
+            font-size: 1.15rem;
+            margin-bottom: 4px;
+        }
+
+        .section-block p {
+            color: #888;
+            font-size: 0.88rem;
+            max-width: 720px;
+            margin-bottom: 12px;
+        }
+
+        .mode-badge {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .mode-badge--dark {
+            background: rgba(255,255,255,0.12);
+            color: inherit;
+        }
+
+        .mode-badge--light {
+            background: rgba(0,0,0,0.08);
+            color: inherit;
+        }
+    </style>
+</head>
+<body>
+    <h1>Палитры для «Севастополь Топливо»</h1>
+    <p class="lead">
+        Сначала были только тёмные — так сейчас в приложении (карта ночью, PWA, меньше бликов на улице).
+        Ниже добавлены и <strong>светлые</strong>: удобнее днём и на солнце. Нажмите на карточку → «Копировать CSS» → вставьте в <code>resources/css/app.css</code> (:root).
+        Маркеры 🟢🟡🔴⚫ во всех темах одинаковые.
+    </p>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="panel" id="panel">
+        <div>
+            <strong id="selected-name">—</strong>
+            <code id="selected-css"></code>
+        </div>
+        <div class="panel-actions">
+            <button type="button" class="btn-copy" id="copyBtn">Копировать CSS</button>
+            <button type="button" class="btn-clear" id="clearBtn">Сбросить</button>
+        </div>
+    </div>
+
+    <script>
+        const MARKERS = {
+            ok: '#22C55E',
+            warn: '#EAB308',
+            bad: '#EF4444',
+            unknown: '#6B7280',
+        };
+
+        const DARK_THEMES = [
+            {
+                id: 'current',
+                mode: 'dark',
+                name: 'Тёплая ночь',
+                tag: 'как сейчас в коде',
+                vars: {
+                    bg: '#0a0807', surface: '#14100e', surface2: '#1c1512', surface3: '#2a1f1a',
+                    text: '#e8dcc8', muted: '#9a8578', primary: '#b91c1c', primaryHover: '#991b1b',
+                    accent: '#c9a55c', accentHover: '#d4b06a', border: '#3d2a24', borderLight: '#5c4035',
+                },
+            },
+            {
+                id: 'slate',
+                mode: 'dark',
+                name: 'Slate',
+                tag: 'нейтральная, без коричневого',
+                vars: {
+                    bg: '#0f1117', surface: '#161922', surface2: '#1e2433', surface3: '#2a3347',
+                    text: '#e8eaef', muted: '#8b93a7', primary: '#dc2626', primaryHover: '#b91c1c',
+                    accent: '#94a3b8', accentHover: '#cbd5e1', border: '#2e3648', borderLight: '#3d4a63',
+                },
+            },
+            {
+                id: 'ocean',
+                mode: 'dark',
+                name: 'Ocean',
+                tag: 'морская ночь, Севастополь',
+                vars: {
+                    bg: '#060d14', surface: '#0c1624', surface2: '#122033', surface3: '#1a2d45',
+                    text: '#dce8f5', muted: '#7a94ad', primary: '#0ea5e9', primaryHover: '#0284c7',
+                    accent: '#38bdf8', accentHover: '#7dd3fc', border: '#1e3a5f', borderLight: '#2d5080',
+                },
+            },
+            {
+                id: 'emerald',
+                mode: 'dark',
+                name: 'Emerald',
+                tag: 'зелёный акцент, «есть топливо»',
+                vars: {
+                    bg: '#080c0a', surface: '#0f1612', surface2: '#152019', surface3: '#1f2e24',
+                    text: '#e4ede8', muted: '#8fa396', primary: '#16a34a', primaryHover: '#15803d',
+                    accent: '#4ade80', accentHover: '#86efac', border: '#243528', borderLight: '#355040',
+                },
+            },
+            {
+                id: 'amber',
+                mode: 'dark',
+                name: 'Amber',
+                tag: 'бензин, тёплый контраст',
+                vars: {
+                    bg: '#0c0a07', surface: '#15110c', surface2: '#1e1810', surface3: '#2a2218',
+                    text: '#f5efe6', muted: '#a89880', primary: '#ea580c', primaryHover: '#c2410c',
+                    accent: '#fbbf24', accentHover: '#fcd34d', border: '#3d3220', borderLight: '#524428',
+                },
+            },
+            {
+                id: 'crimson-gold',
+                mode: 'dark',
+                name: 'Crimson + Gold',
+                tag: 'премиум, красный + золото',
+                vars: {
+                    bg: '#0a0908', surface: '#121010', surface2: '#1a1714', surface3: '#252019',
+                    text: '#f0ebe3', muted: '#9c9080', primary: '#e11d48', primaryHover: '#be123c',
+                    accent: '#d4af37', accentHover: '#e8c547', border: '#332e28', borderLight: '#4a4338',
+                },
+            },
+            {
+                id: 'graphite-cyan',
+                mode: 'dark',
+                name: 'Graphite + Cyan',
+                tag: 'tech, современно',
+                vars: {
+                    bg: '#0a0a0b', surface: '#141416', surface2: '#1c1c1f', surface3: '#27272a',
+                    text: '#fafafa', muted: '#71717a', primary: '#0891b2', primaryHover: '#0e7490',
+                    accent: '#22d3ee', accentHover: '#67e8f9', border: '#2d2d30', borderLight: '#3f3f46',
+                },
+            },
+            {
+                id: 'olive',
+                mode: 'dark',
+                name: 'Olive',
+                tag: 'сдержанная, «городская»',
+                vars: {
+                    bg: '#0b0c09', surface: '#131510', surface2: '#1a1d16', surface3: '#252a20',
+                    text: '#e2e6dc', muted: '#8a9278', primary: '#65a30d', primaryHover: '#4d7c0f',
+                    accent: '#a3e635', accentHover: '#bef264', border: '#2f3528', borderLight: '#434b38',
+                },
+            },
+        ];
+
+        const LIGHT_THEMES = [
+            {
+                id: 'paper',
+                mode: 'light',
+                name: 'Paper',
+                tag: 'чистая, нейтральная',
+                vars: {
+                    bg: '#f4f6f8', surface: '#ffffff', surface2: '#eef1f5', surface3: '#e2e8f0',
+                    text: '#1a202c', muted: '#64748b', primary: '#dc2626', primaryHover: '#b91c1c',
+                    accent: '#2563eb', accentHover: '#1d4ed8', border: '#cbd5e1', borderLight: '#e2e8f0',
+                },
+            },
+            {
+                id: 'sand',
+                mode: 'light',
+                name: 'Sand / Sun',
+                tag: 'тёплый день, юг',
+                vars: {
+                    bg: '#faf6ef', surface: '#fffdf8', surface2: '#f3ebe0', surface3: '#e8dcc8',
+                    text: '#2c2419', muted: '#7a6b58', primary: '#c2410c', primaryHover: '#9a3412',
+                    accent: '#b45309', accentHover: '#92400e', border: '#ddd0bc', borderLight: '#ebe0d0',
+                },
+            },
+            {
+                id: 'sky',
+                mode: 'light',
+                name: 'Sky',
+                tag: 'море, небо, прохлада',
+                vars: {
+                    bg: '#f0f7ff', surface: '#ffffff', surface2: '#e8f2fc', surface3: '#d6e8f8',
+                    text: '#0f2744', muted: '#5b7290', primary: '#0284c7', primaryHover: '#0369a1',
+                    accent: '#0ea5e9', accentHover: '#0284c7', border: '#bdd7f0', borderLight: '#dbeafe',
+                },
+            },
+            {
+                id: 'mint-day',
+                mode: 'light',
+                name: 'Mint day',
+                tag: 'свежесть, «можно ехать»',
+                vars: {
+                    bg: '#f2faf5', surface: '#ffffff', surface2: '#e8f5ec', surface3: '#d1e7d8',
+                    text: '#1a2e22', muted: '#5f7a6a', primary: '#15803d', primaryHover: '#166534',
+                    accent: '#16a34a', accentHover: '#15803d', border: '#b8d4c4', borderLight: '#d1e7d8',
+                },
+            },
+            {
+                id: 'station',
+                mode: 'light',
+                name: 'Station classic',
+                tag: 'как вывеска АЗС: белый + красный',
+                vars: {
+                    bg: '#f5f5f5', surface: '#ffffff', surface2: '#eeeeee', surface3: '#e0e0e0',
+                    text: '#212121', muted: '#757575', primary: '#d50000', primaryHover: '#b71c1c',
+                    accent: '#ffc107', accentHover: '#ffb300', border: '#cfcfcf', borderLight: '#e5e5e5',
+                },
+            },
+            {
+                id: 'cream-gold',
+                mode: 'light',
+                name: 'Cream + Gold',
+                tag: 'светлая премиум, золото',
+                vars: {
+                    bg: '#faf8f4', surface: '#fffcf7', surface2: '#f5f0e6', surface3: '#ebe3d4',
+                    text: '#2a2520', muted: '#8a8070', primary: '#b91c1c', primaryHover: '#991b1b',
+                    accent: '#a67c00', accentHover: '#8a6600', border: '#ddd5c4', borderLight: '#ebe3d4',
+                },
+            },
+        ];
+
+        const SECTIONS = [
+            {
+                title: 'Тёмные темы',
+                description: 'Карта и UI сливаются, меньше слепит ночью. Сейчас приложение в таком стиле.',
+                themes: DARK_THEMES,
+            },
+            {
+                title: 'Светлые темы',
+                description: 'Лучше днём и на солнце, привычнее «как обычный сайт». Понадобится проверить контраст карты Яндекса.',
+                themes: LIGHT_THEMES,
+            },
+        ];
+
+        function cssBlock(v) {
+            return `:root {
+    --bg: ${v.bg};
+    --surface: ${v.surface};
+    --surface2: ${v.surface2};
+    --surface3: ${v.surface3};
+    --text: ${v.text};
+    --muted: ${v.muted};
+    --primary: ${v.primary};
+    --primary-hover: ${v.primaryHover};
+    --accent: ${v.accent};
+    --accent-hover: ${v.accentHover};
+    --border: ${v.border};
+    --border-light: ${v.borderLight};
+}`;
+        }
+
+        function renderPreview(v, mode) {
+            const markerRing = mode === 'light' ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.5)';
+            return `
+                <div class="mock-topbar" style="background:${v.surface}; color:${v.text}; border:1px solid ${v.border}">
+                    <span>Топливо</span>
+                    <div class="mock-icons">
+                        <div class="mock-icon" style="background:${v.surface2}; border-color:${v.border}; color:${v.text}">?</div>
+                        <div class="mock-toggle" style="background:${v.surface2}">
+                            <span style="background:${v.primary}; color:#fff">Карта</span>
+                            <span style="color:${v.muted}">Список</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mock-chips">
+                    <div class="mock-chip" style="background:${v.primary}; color:#fff; border-color:${v.primary}">95</div>
+                    <div class="mock-chip" style="background:${v.surface2}; color:${v.text}; border-color:${v.border}">ДТ</div>
+                    <div class="mock-chip" style="background:${v.accentDim || v.accent + '24'}; color:${v.accent}; border-color:${v.accent}55">QR</div>
+                </div>
+                <div class="mock-map" style="background:linear-gradient(160deg, ${v.surface2}, ${v.surface3})">
+                    <div class="mock-marker" style="left:18%; top:30%; background:${MARKERS.ok}; border-color:${markerRing}"></div>
+                    <div class="mock-marker" style="left:45%; top:50%; background:${MARKERS.bad}; border-color:${markerRing}"></div>
+                    <div class="mock-marker" style="left:70%; top:25%; background:${MARKERS.warn}; border-color:${markerRing}"></div>
+                    <div class="mock-marker" style="left:55%; top:65%; background:${MARKERS.unknown}; border-color:${markerRing}"></div>
+                </div>
+                <div class="mock-sheet" style="background:${v.surface}; border:1px solid ${v.border}; color:${v.text}">
+                    <strong>АЗС ТЭС · Нахимова</strong>
+                    <span style="color:${MARKERS.ok}">● 95 — есть</span>
+                    <div class="mock-btns">
+                        <div class="mock-btn" style="background:${v.primary}; color:#fff">Сообщить</div>
+                        <div class="mock-btn" style="background:${v.surface2}; color:${v.text}; border:1px solid ${v.border}">Подтверждаю</div>
+                    </div>
+                </div>`;
+        }
+
+        function renderThemeCard(theme) {
+            const v = theme.vars;
+            const card = document.createElement('article');
+            card.className = 'theme-card';
+            card.dataset.id = theme.id;
+            card.innerHTML = `
+                <div class="theme-head" style="background:${v.bg}; color:${v.text}">
+                    <span class="theme-name">${theme.name}</span>
+                    <span class="mode-badge mode-badge--${theme.mode}">${theme.mode === 'light' ? 'светлая' : 'тёмная'}</span>
+                    <span class="theme-tag">${theme.tag}</span>
+                </div>
+                <div class="swatches">
+                    <div class="swatch" title="bg" style="background:${v.bg}"></div>
+                    <div class="swatch" title="surface" style="background:${v.surface}"></div>
+                    <div class="swatch" title="primary" style="background:${v.primary}"></div>
+                    <div class="swatch" title="accent" style="background:${v.accent}"></div>
+                    <div class="swatch" title="text" style="background:${v.text}"></div>
+                </div>
+                <div class="preview" style="background:${v.bg}">${renderPreview(v, theme.mode)}</div>
+                <div class="markers-row" style="background:${v.bg}; color:${v.muted}">
+                    <span><i class="dot" style="background:${MARKERS.ok}"></i> есть</span>
+                    <span><i class="dot" style="background:${MARKERS.warn}"></i> старое</span>
+                    <span><i class="dot" style="background:${MARKERS.bad}"></i> нет</span>
+                    <span><i class="dot" style="background:${MARKERS.unknown}"></i> ?</span>
+                </div>`;
+
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.theme-card').forEach((c) => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedName.textContent = `${theme.name} (${theme.mode === 'light' ? 'светлая' : 'тёмная'})`;
+                selectedCss.textContent = cssBlock(v);
+                panel.classList.add('visible');
+            });
+
+            return card;
+        }
+
+        const grid = document.getElementById('grid');
+        const panel = document.getElementById('panel');
+        const selectedName = document.getElementById('selected-name');
+        const selectedCss = document.getElementById('selected-css');
+
+        SECTIONS.forEach((section) => {
+            const block = document.createElement('div');
+            block.className = 'section-block';
+            block.innerHTML = `<h2>${section.title}</h2><p>${section.description}</p>`;
+            grid.appendChild(block);
+
+            section.themes.forEach((theme) => {
+                grid.appendChild(renderThemeCard(theme));
+            });
+        });
+
+        document.getElementById('copyBtn').addEventListener('click', () => {
+            if (!selectedCss.textContent) return;
+            navigator.clipboard.writeText(selectedCss.textContent).then(() => {
+                document.getElementById('copyBtn').textContent = 'Скопировано!';
+                setTimeout(() => { document.getElementById('copyBtn').textContent = 'Копировать CSS'; }, 1500);
+            });
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            document.querySelectorAll('.theme-card').forEach((c) => c.classList.remove('selected'));
+            panel.classList.remove('visible');
+        });
+    </script>
+</body>
+</html>

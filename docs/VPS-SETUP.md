@@ -116,13 +116,13 @@ sudo mysql -e "FLUSH PRIVILEGES;"
 
 | Цель | Тип | Имя | Значение |
 |------|-----|-----|----------|
-| `https://sevazs.su` | A | `@` | IP VPS |
-| `https://fuel.sevazs.su` | A | `fuel` | IP VPS |
+| `https://sevazs.ru` | A | `@` | IP VPS |
+| `https://fuel.sevazs.ru` | A | `fuel` | IP VPS |
 
 Подождите 5–30 минут. Проверка:
 
 ```bash
-dig +short sevazs.su
+dig +short sevazs.ru
 ```
 
 Полная инструкция с типичными ошибками: [DOMAIN-AND-SSL.md §1](DOMAIN-AND-SSL.md#1-привязка-домена-к-vps-пошагово).
@@ -244,7 +244,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d sevazs.su
+sudo certbot --nginx -d sevazs.ru
 ```
 
 Certbot настроит HTTPS и автообновление (~90 дней).
