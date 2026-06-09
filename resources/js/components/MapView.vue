@@ -432,7 +432,7 @@ defineExpose({ invalidateSize });
                 Затем: <code>npm run build</code> и обновите страницу.
             </p>
         </div>
-        <div v-if="pickMode" class="map-pick-hint">Нажмите на карту- где заправка</div>
+        <div v-if="pickMode" class="map-pick-hint">Нажмите на карту - где заправка</div>
         <div v-if="mapLayer === 'queue' && !pickMode" class="map-queue-legend" aria-hidden="true">
             <span class="map-queue-legend-title">Очереди</span>
             <span class="map-queue-legend-item"><i class="map-queue-dot map-queue-dot--low"></i> до 10</span>

@@ -134,7 +134,7 @@ function onClose() {
 <template>
     <div v-if="picking" class="add-pick-bar">
         <div class="add-pick-bar-inner">
-            <p class="add-pick-bar-text">Нажмите на карту- куда перенести маркер</p>
+            <p class="add-pick-bar-text">Нажмите на карту - куда перенести маркер</p>
             <button type="button" class="btn btn-secondary btn-sm" @click="togglePick">
                 Отмена
             </button>

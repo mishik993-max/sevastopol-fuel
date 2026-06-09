@@ -47,7 +47,7 @@ async function apiFetch(url, options = {}) {
 
     if (res.status === 401) {
         logout();
-        throw new Error('Сессия истекла- войдите снова');
+        throw new Error('Сессия истекла - войдите снова');
     }
 
     if (!res.ok) throw new Error(json.message || 'Ошибка запроса');

@@ -21,8 +21,8 @@ class StationClosureController extends Controller
         );
 
         $message = $result['deactivated']
-            ? 'АЗС скрыта с карты- несколько человек сообщили, что она не работает.'
-            : 'Спасибо! Ещё '.($result['reports_required'] - $result['reports_count']).' сообщений- и АЗС скроем с карты.';
+            ? 'АЗС скрыта с карты - несколько человек сообщили, что она не работает.'
+            : 'Спасибо! Ещё '.($result['reports_required'] - $result['reports_count']).' сообщений - и АЗС скроем с карты.';
 
         return response()->json([
             'message' => $message,

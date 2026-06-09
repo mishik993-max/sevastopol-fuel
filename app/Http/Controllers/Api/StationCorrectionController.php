@@ -69,7 +69,7 @@ class StationCorrectionController extends Controller
         $station->setRelation('reports', $reports);
 
         $message = $result['applied']
-            ? 'Исправление применено- достаточно подтверждений.'
+            ? 'Исправление применено - достаточно подтверждений.'
             : 'Спасибо! Ещё '.($result['confirmations_required'] - $result['confirmations_count']).' подтверждений.';
 
         return response()->json([

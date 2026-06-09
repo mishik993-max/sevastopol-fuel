@@ -47,7 +47,7 @@ export function usePushNotifications() {
             }
 
             if (permission !== 'granted') {
-                throw new Error('Разрешение не получено- нажмите «Разрешить» в запросе браузера');
+                throw new Error('Разрешение не получено - нажмите «Разрешить» в запросе браузера');
             }
         }
 

@@ -235,7 +235,7 @@ class StationCorrectionService
 
         if ($this->distanceM($lat, $lng, $station->latitude, $station->longitude) < 10) {
             throw ValidationException::withMessages([
-                'latitude' => ['Новая точка слишком близко к текущей- сдвиньте маркер заметнее.'],
+                'latitude' => ['Новая точка слишком близко к текущей - сдвиньте маркер заметнее.'],
             ]);
         }
 

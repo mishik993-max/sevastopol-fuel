@@ -133,7 +133,7 @@ function onClose() {
         <div class="modal">
             <button class="close-btn" type="button" @click="onClose">✕</button>
             <h2>Добавить АЗС</h2>
-            <p class="hint">Если заправки нет на карте- укажите её для всех пользователей.</p>
+            <p class="hint">Если заправки нет на карте - укажите её для всех пользователей.</p>
 
             <form @submit.prevent="submit">
                 <label class="field">
