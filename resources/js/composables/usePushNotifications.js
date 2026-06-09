@@ -2,6 +2,7 @@ import { ref } from 'vue';
 import { apiUrl } from '../api';
 import { waitForServiceWorker } from '../swRegister';
 import { getPushClientId } from './usePushClientId';
+import { notifyPushReady } from './useFavoritePushWatches';
 
 const subscribed = ref(false);
 const permissionState = ref(
@@ -93,6 +94,7 @@ export function usePushNotifications() {
         subscribed.value = true;
         localStorage.setItem('push_subscribed', '1');
         localStorage.removeItem('push_dismissed');
+        notifyPushReady();
     }
 
     async function syncExistingSubscription() {
@@ -127,6 +129,7 @@ export function usePushNotifications() {
             if (saveRes.ok) {
                 subscribed.value = true;
                 localStorage.setItem('push_subscribed', '1');
+                notifyPushReady();
             }
         } catch {
             // ignore background sync errors

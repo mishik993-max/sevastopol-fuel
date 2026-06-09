@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\PushSubscription;
+use App\Models\PushSubscriptionWatch;
 use App\Support\VapidKeys;
 use Illuminate\Console\Command;
 
@@ -45,6 +46,13 @@ class CheckVapidKeys extends Command
             $this->info("Подписок в БД: {$total}, все ключи корректны.");
         } else {
             $this->warn("Подписок в БД: {$total}, битых: {$broken}");
+        }
+
+        $watches = PushSubscriptionWatch::query()->count();
+        $this->line("Watches (избранные АЗС): {$watches}");
+
+        if ($watches === 0 && $total > 0) {
+            $this->warn('Watches пусто — см. php artisan fuel-push:check');
         }
 
         return $broken > 0 ? self::FAILURE : self::SUCCESS;

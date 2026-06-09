@@ -28,7 +28,7 @@ import { readCookieConsent, saveCookieConsent } from './composables/useCookieCon
 import { isInBbox, loadAppSettings, useAppSettings } from './composables/useAppSettings';
 import { useShare } from './composables/useShare';
 import { useFavoriteStations } from './composables/useFavoriteStations';
-import { syncFavoritePushWatches } from './composables/useFavoritePushWatches';
+import { syncFavoritePushWatches, PUSH_READY_EVENT } from './composables/useFavoritePushWatches';
 import { usePushNotifications } from './composables/usePushNotifications';
 
 const { stations, loading, error, fetchStations, fetchNearby, fetchStation } = useStations();
@@ -136,7 +136,10 @@ watch(viewMode, async (mode) => {
     mapViewRef.value?.invalidateSize?.();
 });
 
-onUnmounted(teardownSheetObserver);
+onUnmounted(() => {
+    window.removeEventListener(PUSH_READY_EVENT, onPushReady);
+    teardownSheetObserver();
+});
 
 const availableNetworks = computed(() => {
     const counts = new Map();
@@ -268,6 +271,7 @@ function startTour() {
 }
 
 onMounted(async () => {
+    window.addEventListener(PUSH_READY_EVENT, onPushReady);
     pendingDeepLinkStationId.value = readDeepLinkStationId();
 
     if (!isAdminRoute.value) {
@@ -283,6 +287,10 @@ onMounted(async () => {
             showOnboarding.value = true;
         }
     }
+});
+
+onUnmounted(() => {
+    window.removeEventListener(PUSH_READY_EVENT, onPushReady);
 });
 
 watch(stations, async (list) => {
@@ -302,6 +310,10 @@ watch(pushSubscribed, (active) => {
         syncPushWatches();
     }
 });
+
+function onPushReady() {
+    syncPushWatches();
+}
 
 watch([selectedNetwork, selectedSaleType], () => {
     if (

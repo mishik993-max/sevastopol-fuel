@@ -3,11 +3,9 @@
 namespace App\Services;
 
 use App\Enums\FuelType;
-use App\Models\PushSubscription;
 use App\Models\PushSubscriptionWatch;
 use App\Models\Report;
 use App\Models\Station;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 class FavoriteFuelPushService
@@ -30,6 +28,7 @@ class FavoriteFuelPushService
         }
 
         $fuelType = $report->fuel_type;
+        $fuelValue = $fuelType->value;
         $reports = Report::query()
             ->visible()
             ->where('station_id', $station->id)
@@ -40,9 +39,16 @@ class FavoriteFuelPushService
         $oldReports = $reports->where('id', '!=', $report->id);
         $oldFuel = $this->statusService->fuelStatus($station, $fuelType, $oldReports);
 
-        $this->updateWatchMarkerColors($station->id, $fuelType, $newFuel['marker_color']);
-
         if ($oldFuel['marker_color'] === 'green' || $newFuel['marker_color'] !== 'green') {
+            Log::debug('Fuel push skipped: no green transition', [
+                'station_id' => $station->id,
+                'fuel_type' => $fuelValue,
+                'report_id' => $report->id,
+                'old_marker' => $oldFuel['marker_color'],
+                'new_marker' => $newFuel['marker_color'],
+            ]);
+            $this->updateWatchMarkerColors($station->id, $fuelValue, $newFuel['marker_color']);
+
             return;
         }
 
@@ -51,16 +57,34 @@ class FavoriteFuelPushService
 
         $watches = PushSubscriptionWatch::query()
             ->where('station_id', $station->id)
-            ->where('fuel_type', $fuelType)
+            ->where('fuel_type', $fuelValue)
             ->where('notify_available', true)
             ->with('pushSubscription')
             ->get();
+
+        if ($watches->isEmpty()) {
+            Log::info('Fuel push skipped: no watches', [
+                'station_id' => $station->id,
+                'fuel_type' => $fuelValue,
+                'report_id' => $report->id,
+            ]);
+            $this->updateWatchMarkerColors($station->id, $fuelValue, $newFuel['marker_color']);
+
+            return;
+        }
 
         $eligible = $watches->filter(function (PushSubscriptionWatch $watch) use ($cooldownSince) {
             return $watch->last_notified_at === null || $watch->last_notified_at->lt($cooldownSince);
         });
 
         if ($eligible->isEmpty()) {
+            Log::info('Fuel push skipped: cooldown', [
+                'station_id' => $station->id,
+                'fuel_type' => $fuelValue,
+                'report_id' => $report->id,
+            ]);
+            $this->updateWatchMarkerColors($station->id, $fuelValue, $newFuel['marker_color']);
+
             return;
         }
 
@@ -71,12 +95,25 @@ class FavoriteFuelPushService
             ->values();
 
         if ($subscriptions->isEmpty()) {
+            Log::warning('Fuel push skipped: watches without subscriptions', [
+                'station_id' => $station->id,
+                'fuel_type' => $fuelValue,
+            ]);
+            $this->updateWatchMarkerColors($station->id, $fuelValue, $newFuel['marker_color']);
+
             return;
         }
 
         $body = $this->notificationBody($station, $fuelType);
         $url = $this->notificationUrl($station, $fuelType);
         $tag = 'sevazs-fuel-'.$station->id;
+
+        Log::info('Fuel push sending', [
+            'station_id' => $station->id,
+            'fuel_type' => $fuelValue,
+            'report_id' => $report->id,
+            'subscriptions' => $subscriptions->count(),
+        ]);
 
         $delivered = $this->webPush->sendTo(
             $subscriptions,
@@ -87,11 +124,13 @@ class FavoriteFuelPushService
         );
 
         if ($delivered === 0) {
-            Log::info('Favorite fuel push queued but not delivered', [
+            Log::warning('Fuel push not delivered', [
                 'station_id' => $station->id,
-                'fuel_type' => $fuelType->value,
+                'fuel_type' => $fuelValue,
                 'report_id' => $report->id,
             ]);
+
+            $this->updateWatchMarkerColors($station->id, $fuelValue, $newFuel['marker_color']);
 
             return;
         }
@@ -104,9 +143,15 @@ class FavoriteFuelPushService
                 'last_notified_at' => $notifiedAt,
                 'last_marker_color' => 'green',
             ]);
+
+        Log::info('Fuel push delivered', [
+            'station_id' => $station->id,
+            'fuel_type' => $fuelValue,
+            'delivered' => $delivered,
+        ]);
     }
 
-    private function updateWatchMarkerColors(int $stationId, FuelType $fuelType, string $markerColor): void
+    private function updateWatchMarkerColors(int $stationId, string $fuelType, string $markerColor): void
     {
         PushSubscriptionWatch::query()
             ->where('station_id', $stationId)
