@@ -49,4 +49,6 @@ Route::middleware(['admin', 'throttle:admin-api'])->prefix('admin')->group(funct
     Route::post('/reports/{report}/unhide', [AdminController::class, 'unhideReport']);
     Route::get('/osm-import/preview', [AdminController::class, 'osmImportPreview'])->middleware('throttle:10,30');
     Route::post('/osm-import/run', [AdminController::class, 'osmImportRun'])->middleware('throttle:10,30');
+    Route::get('/push/status', [AdminController::class, 'pushStatus']);
+    Route::post('/push/send', [AdminController::class, 'sendPush'])->middleware('throttle:5,60');
 });

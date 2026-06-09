@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\FeedbackStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AdminSendPushRequest;
 use App\Http\Requests\UpdateAppSettingsRequest;
 use App\Http\Requests\UpdateFeedbackRequest;
 use App\Models\FeedbackMessage;
+use App\Models\PushSubscription;
 use App\Models\Report;
 use App\Models\StationCorrection;
 use App\Services\AdminReportService;
@@ -14,6 +16,7 @@ use App\Services\AppSettingsService;
 use App\Services\FeedbackService;
 use App\Services\StationCorrectionService;
 use App\Services\StationImportService;
+use App\Services\WebPushService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -204,6 +207,55 @@ class AdminController extends Controller
         return response()->json([
             'message' => 'Импорт выполнен',
             'data' => $result,
+        ]);
+    }
+
+    public function pushStatus(): JsonResponse
+    {
+        return response()->json([
+            'data' => [
+                'subscriptions' => PushSubscription::query()->count(),
+            ],
+        ]);
+    }
+
+    public function sendPush(AdminSendPushRequest $request, WebPushService $webPush): JsonResponse
+    {
+        $total = PushSubscription::query()->count();
+
+        if ($total === 0) {
+            return response()->json([
+                'message' => 'Нет подписок на push. Пользователи должны включить уведомления на сайте.',
+            ], 422);
+        }
+
+        $validated = $request->validated();
+        $url = isset($validated['url']) && $validated['url'] !== ''
+            ? $validated['url']
+            : null;
+
+        $delivered = $webPush->broadcast(
+            $validated['title'],
+            $validated['body'],
+            $url,
+        );
+
+        if ($delivered === 0) {
+            return response()->json([
+                'message' => 'Не удалось доставить ни одному подписчику. Выполните php artisan webpush:check на сервере.',
+                'data' => [
+                    'delivered' => 0,
+                    'total' => $total,
+                ],
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => "Доставлено {$delivered} из {$total}",
+            'data' => [
+                'delivered' => $delivered,
+                'total' => $total,
+            ],
         ]);
     }
 }
