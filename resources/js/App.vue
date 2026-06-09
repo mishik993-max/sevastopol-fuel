@@ -63,6 +63,26 @@ const mapViewRef = ref(null);
 const bottomSheetEl = ref(null);
 const sheetHeightPx = ref(0);
 
+const COOKIE_BANNER_LIFT_PX = 118;
+
+const cookieBannerLift = computed(() => (
+    cookieConsentGranted.value ? 0 : COOKIE_BANNER_LIFT_PX
+));
+
+const mapFabBottomStyle = computed(() => {
+    const lift = cookieBannerLift.value;
+
+    if (sheetHeightPx.value > 0) {
+        return { bottom: `calc(${sheetHeightPx.value + 16 + lift}px + var(--safe-bottom))` };
+    }
+
+    if (lift > 0) {
+        return { bottom: `calc(${12 + lift}px + var(--safe-bottom))` };
+    }
+
+    return undefined;
+});
+
 let sheetObserver = null;
 
 function teardownSheetObserver() {
@@ -456,7 +476,7 @@ async function onStationClosed() {
         @open-legal="(id) => { legalDocId = id; showLegal = true; }"
     />
 
-    <div v-else class="app">
+    <div v-else class="app" :class="{ 'app--cookie-pending': !cookieConsentGranted }">
         <header class="topbar">
             <div class="topbar-row topbar-row--title">
                 <h1>Топливо</h1>
@@ -632,7 +652,7 @@ async function onStationClosed() {
                 v-show="viewMode === 'map' && !showAddStation && !showEditStation"
                 class="map-fab-bar"
                 :class="{ 'map-fab-bar--sheet': !!selectedStation && !showReport && !showConfirm && !showEditStation }"
-                :style="sheetHeightPx > 0 ? { bottom: `${sheetHeightPx + 16}px` } : undefined"
+                :style="mapFabBottomStyle"
             >
                 <button
                     type="button"

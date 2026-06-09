@@ -36,6 +36,7 @@
     --safe-right: env(safe-area-inset-right, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);
+    --cookie-banner-offset: 0px;
     --app-height: 100dvh;
     --scrollbar-thumb: rgba(232, 184, 75, 0.2);
     --scrollbar-track: #0a0807;
@@ -530,7 +531,7 @@ body {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: calc(12px + var(--safe-bottom));
+    bottom: calc(12px + var(--safe-bottom) + var(--cookie-banner-offset));
     z-index: 500;
     display: flex;
     align-items: center;
@@ -541,7 +542,7 @@ body {
 }
 
 .map-fab-bar--sheet {
-    bottom: calc(24px + var(--safe-bottom));
+    bottom: calc(24px + var(--safe-bottom) + var(--cookie-banner-offset));
 }
 
 .map-fab-bar > * {
@@ -2894,6 +2895,18 @@ body {
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.08);
     color: #5a5855;
+}
+
+.app--cookie-pending {
+    --cookie-banner-offset: 118px;
+}
+
+.app--cookie-pending .station-list-wrap {
+    padding-bottom: calc(120px + var(--safe-bottom));
+}
+
+.app--cookie-pending .app-legal-footer {
+    margin-bottom: calc(108px + var(--safe-bottom));
 }
 
 .sale-btn--voucher.active {
