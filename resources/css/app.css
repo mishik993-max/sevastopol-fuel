@@ -3210,7 +3210,7 @@ body {
     gap: 24px;
     padding: 16px 28px calc(32px + var(--safe-bottom));
     border-top: 1px solid rgba(255, 255, 255, 0.05);
-    background: linear-gradient(180deg, transparent 0%, rgba(10, 8, 7, 0.85) 30%);
+    background: transparent;
 }
 
 .geo-gate--figma .geo-gate-footer-link {
