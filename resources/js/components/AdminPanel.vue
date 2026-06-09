@@ -58,7 +58,17 @@ async function login() {
             headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
             body: JSON.stringify({ password: password.value }),
         });
-        const json = await res.json();
+        const json = await res.json().catch(() => ({}));
+
+        if (res.status === 429) {
+            const retryAfter = res.headers.get('Retry-After');
+            throw new Error(
+                json.message
+                || (retryAfter
+                    ? `Слишком много попыток. Подождите ${retryAfter} сек.`
+                    : 'Слишком много попыток. Подождите несколько минут.'),
+            );
+        }
 
         if (!res.ok) throw new Error(json.message || 'Ошибка входа');
 

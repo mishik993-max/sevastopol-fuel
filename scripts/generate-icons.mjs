@@ -17,7 +17,10 @@ async function generateWithSharp() {
     await sharp(svg).resize(32, 32).png().toFile(join(iconsDir, 'favicon-32.png'));
     await copyFile(join(iconsDir, 'favicon-32.png'), join(root, 'public', 'favicon.ico'));
 
-    console.log('Icons generated: icon-192.png, icon-512.png, favicon.ico');
+    const badgeSvg = await import('node:fs/promises').then((fs) => fs.readFile(join(iconsDir, 'notification-badge.svg')));
+    await sharp(badgeSvg).resize(96, 96).png().toFile(join(iconsDir, 'notification-badge.png'));
+
+    console.log('Icons generated: icon-192.png, icon-512.png, notification-badge.png, favicon.ico');
 }
 
 try {

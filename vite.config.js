@@ -24,6 +24,13 @@ export default defineConfig({
             filename: 'sw.js',
             registerType: 'autoUpdate',
             includeAssets: ['favicon.ico', 'icons/*'],
+            injectManifest: {
+                additionalManifestEntries: [
+                    { url: '/icons/icon-192.png', revision: null },
+                    { url: '/icons/icon-512.png', revision: null },
+                    { url: '/icons/notification-badge.png', revision: null },
+                ],
+            },
             manifest: {
                 name: 'Севастополь Топливо',
                 short_name: 'Топливо',

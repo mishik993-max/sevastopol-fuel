@@ -28,24 +28,25 @@ Route::middleware('throttle:60,1')->group(function () {
 
     Route::post('/feedback', [FeedbackController::class, 'store'])->middleware('throttle:5,60');
 
-    Route::post('/admin/login', [AdminController::class, 'login'])->middleware('throttle:10,1');
-    Route::middleware(['admin', 'throttle:30,1'])->prefix('admin')->group(function () {
-        Route::get('/summary', [AdminController::class, 'summary']);
-        Route::get('/corrections', [AdminController::class, 'corrections']);
-        Route::post('/corrections/{correction}/apply', [AdminController::class, 'applyCorrection']);
-        Route::post('/corrections/{correction}/reject', [AdminController::class, 'rejectCorrection']);
-        Route::get('/feedback', [AdminController::class, 'feedback']);
-        Route::patch('/feedback/{feedback}', [AdminController::class, 'updateFeedback']);
-        Route::get('/settings', [AdminController::class, 'settings']);
-        Route::patch('/settings', [AdminController::class, 'updateSettings']);
-        Route::get('/reports', [AdminController::class, 'reports']);
-        Route::post('/reports/{report}/hide', [AdminController::class, 'hideReport']);
-        Route::post('/reports/{report}/unhide', [AdminController::class, 'unhideReport']);
-        Route::get('/osm-import/preview', [AdminController::class, 'osmImportPreview'])->middleware('throttle:10,30');
-        Route::post('/osm-import/run', [AdminController::class, 'osmImportRun'])->middleware('throttle:10,30');
-    });
-
     Route::get('/push/vapid-public-key', [PushController::class, 'vapidPublicKey']);
     Route::post('/push/subscribe', [PushController::class, 'subscribe']);
     Route::delete('/push/unsubscribe', [PushController::class, 'unsubscribe']);
+});
+
+Route::post('/admin/login', [AdminController::class, 'login']);
+
+Route::middleware(['admin', 'throttle:admin-api'])->prefix('admin')->group(function () {
+    Route::get('/summary', [AdminController::class, 'summary']);
+    Route::get('/corrections', [AdminController::class, 'corrections']);
+    Route::post('/corrections/{correction}/apply', [AdminController::class, 'applyCorrection']);
+    Route::post('/corrections/{correction}/reject', [AdminController::class, 'rejectCorrection']);
+    Route::get('/feedback', [AdminController::class, 'feedback']);
+    Route::patch('/feedback/{feedback}', [AdminController::class, 'updateFeedback']);
+    Route::get('/settings', [AdminController::class, 'settings']);
+    Route::patch('/settings', [AdminController::class, 'updateSettings']);
+    Route::get('/reports', [AdminController::class, 'reports']);
+    Route::post('/reports/{report}/hide', [AdminController::class, 'hideReport']);
+    Route::post('/reports/{report}/unhide', [AdminController::class, 'unhideReport']);
+    Route::get('/osm-import/preview', [AdminController::class, 'osmImportPreview'])->middleware('throttle:10,30');
+    Route::post('/osm-import/run', [AdminController::class, 'osmImportRun'])->middleware('throttle:10,30');
 });

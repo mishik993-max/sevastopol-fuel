@@ -2,6 +2,13 @@ import { precacheAndRoute } from 'workbox-precaching';
 
 precacheAndRoute(self.__WB_MANIFEST);
 
+function assetUrl(path) {
+    return new URL(path, self.location.origin).href;
+}
+
+const NOTIFICATION_ICON = assetUrl('/icons/icon-192.png');
+const NOTIFICATION_BADGE = assetUrl('/icons/notification-badge.png');
+
 self.addEventListener('push', (event) => {
     let data = { title: 'Севастополь Топливо', body: 'Новое уведомление' };
 
@@ -16,8 +23,9 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
         self.registration.showNotification(data.title, {
             body: data.body,
-            icon: '/icons/icon-192.png',
-            badge: '/icons/icon-192.png',
+            icon: data.icon || NOTIFICATION_ICON,
+            badge: NOTIFICATION_BADGE,
+            tag: 'sevazs-qr',
         })
     );
 });

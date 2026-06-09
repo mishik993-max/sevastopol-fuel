@@ -15,6 +15,7 @@ use App\Services\FeedbackService;
 use App\Services\StationCorrectionService;
 use App\Services\StationImportService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -37,11 +38,25 @@ class AdminController extends Controller
             return response()->json(['message' => 'ADMIN_PASSWORD не задан в .env'], 503);
         }
 
+        $limiterKey = 'admin-login:'.$request->ip();
+
+        if (RateLimiter::tooManyAttempts($limiterKey, 15)) {
+            $seconds = RateLimiter::availableIn($limiterKey);
+
+            return response()->json([
+                'message' => "Слишком много неудачных попыток. Подождите {$seconds} сек.",
+            ], 429)->header('Retry-After', (string) $seconds);
+        }
+
         $request->validate(['password' => ['required', 'string']]);
 
         if (! hash_equals($password, $request->input('password'))) {
+            RateLimiter::hit($limiterKey, 900);
+
             return response()->json(['message' => 'Неверный пароль'], 401);
         }
+
+        RateLimiter::clear($limiterKey);
 
         return response()->json(['message' => 'Вход выполнен']);
     }
