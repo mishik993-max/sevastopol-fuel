@@ -103,7 +103,7 @@ async function requestAccess() {
                     :disabled="loading"
                     @click="requestAccess"
                 >
-                    <UiIcon name="map-pin" :size="16" :color="loading ? '#22C55E' : '#0A0807'" />
+                    <UiIcon name="map-pin" :size="16" color="#0A0807" />
                     {{ loading ? 'Определяем местоположение…' : 'Разрешить геолокацию' }}
                 </button>
 

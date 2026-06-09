@@ -17,6 +17,7 @@
     --primary: #e53e3e;
     --primary-hover: #c53030;
     --accent: #e8b84b;
+    --gold: #e8b84b;
     --accent-hover: #f0c35c;
     --accent-dim: rgba(232, 184, 75, 0.12);
     --accent-border: rgba(232, 184, 75, 0.25);
@@ -3171,8 +3172,8 @@ body {
     padding: 16px;
     border: none;
     border-radius: 14px;
-    background: var(--gold);
-    color: #0a0807;
+    background: var(--gold, var(--accent));
+    color: var(--accent-foreground);
     font-family: var(--font-display);
     font-size: 0.9375rem;
     font-weight: 800;
