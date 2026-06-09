@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import AdminSettingsPanel from './AdminSettingsPanel.vue';
 import AdminOsmImportPanel from './AdminOsmImportPanel.vue';
 import AdminPushPanel from './AdminPushPanel.vue';
+import AdminReportsPanel from './AdminReportsPanel.vue';
 import { apiUrl } from '../api';
 
 const STORAGE_KEY = 'admin_token';
@@ -12,7 +13,6 @@ const password = ref('');
 const tab = ref('corrections');
 const corrections = ref([]);
 const feedback = ref([]);
-const reports = ref([]);
 const summary = ref({
     pending_corrections: 0,
     new_feedback: 0,
@@ -114,17 +114,12 @@ async function loadFeedback() {
     }
 }
 
-async function loadReports() {
-    const json = await apiFetch('/api/admin/reports');
-    reports.value = json.data;
-}
-
 async function loadAll() {
     loading.value = true;
     error.value = null;
 
     try {
-        await Promise.all([loadSummary(), loadCorrections(), loadFeedback(), loadReports()]);
+        await Promise.all([loadSummary(), loadCorrections(), loadFeedback()]);
         loggedIn.value = true;
     } catch (e) {
         error.value = e.message;
@@ -172,31 +167,12 @@ async function updateFeedback(id, status) {
     }
 }
 
-async function toggleReport(id, hide) {
-    loading.value = true;
-    error.value = null;
-
-    try {
-        const json = await apiFetch(`/api/admin/reports/${id}/${hide ? 'hide' : 'unhide'}`, {
-            method: 'POST',
-            body: JSON.stringify({}),
-        });
-        reports.value = json.data;
-        await loadSummary();
-    } catch (e) {
-        error.value = e.message;
-    } finally {
-        loading.value = false;
-    }
-}
-
 function logout() {
     sessionStorage.removeItem(STORAGE_KEY);
     loggedIn.value = false;
     password.value = '';
     corrections.value = [];
     feedback.value = [];
-    reports.value = [];
     summary.value = {
         pending_corrections: 0,
         new_feedback: 0,
@@ -215,8 +191,6 @@ function correctionSummary(item) {
 }
 
 const feedbackNew = computed(() => feedback.value.filter((f) => f.status === 'new'));
-const reportsVisible = computed(() => reports.value.filter((r) => !r.is_hidden));
-const reportsHidden = computed(() => reports.value.filter((r) => r.is_hidden));
 
 onMounted(() => {
     if (token()) {
@@ -436,71 +410,13 @@ onMounted(() => {
                     </article>
                 </section>
 
-                <section v-if="tab === 'reports'" class="admin-section">
-                    <h2>
-                        Отчёты пользователей
-                        <span class="admin-count">{{ reportsVisible.length }} видимых</span>
-                    </h2>
-                    <p class="hint">
-                        Скрытые отчёты не влияют на статус АЗС на карте. Фото можно открыть в новой вкладке.
-                    </p>
-                    <p v-if="!loading && !reports.length" class="hint">Отчётов пока нет</p>
-
-                    <article
-                        v-for="item in reports"
-                        :key="item.id"
-                        class="admin-item"
-                        :class="{ 'admin-item--muted': item.is_hidden }"
-                    >
-                        <div class="admin-item-head">
-                            <span class="admin-item-title">
-                                {{ item.station_network }} - {{ item.station_name }}
-                            </span>
-                            <span class="admin-item-date">{{ item.created_at }}</span>
-                        </div>
-                        <p class="admin-item-text">
-                            {{ item.fuel_label }}: {{ item.status_label }}
-                            <span v-if="item.is_confirmation" class="history-confirm">✓</span>
-                        </p>
-                        <p v-if="item.sale_type_labels?.length" class="admin-item-meta">
-                            {{ item.sale_type_labels.join(' · ') }}
-                        </p>
-                        <p v-if="item.comment" class="admin-item-text admin-item-text--message">{{ item.comment }}</p>
-                        <a
-                            v-if="item.photo_url"
-                            :href="item.photo_url"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="admin-report-photo-link"
-                        >
-                            <img :src="item.photo_url" alt="Фото отчёта" class="admin-report-photo" loading="lazy" />
-                        </a>
-                        <div class="admin-item-actions">
-                            <button
-                                v-if="!item.is_hidden"
-                                type="button"
-                                class="btn btn-secondary btn-sm"
-                                :disabled="loading"
-                                @click="toggleReport(item.id, true)"
-                            >
-                                Скрыть
-                            </button>
-                            <button
-                                v-else
-                                type="button"
-                                class="btn btn-primary btn-sm"
-                                :disabled="loading"
-                                @click="toggleReport(item.id, false)"
-                            >
-                                Вернуть
-                            </button>
-                        </div>
-                    </article>
-
-                    <div v-if="reportsHidden.length" class="admin-osm-block">
-                        <h3>Скрытые ({{ reportsHidden.length }})</h3>
-                    </div>
-                </section>
+                <AdminReportsPanel
+                    v-if="tab === 'reports'"
+                    :auth-headers="authHeaders"
+                    @error="error = $event"
+                    @saved="(msg) => { saveNotice = msg; error = null; }"
+                    @refresh="loadSummary()"
+                />
 
                 <AdminOsmImportPanel
                     v-if="tab === 'osm'"

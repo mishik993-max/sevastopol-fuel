@@ -168,6 +168,16 @@ class AdminController extends Controller
         ]);
     }
 
+    public function destroyReport(Report $report): JsonResponse
+    {
+        $this->reportService->delete($report);
+
+        return response()->json([
+            'message' => 'Отчёт удалён',
+            'data' => $this->reportService->list(),
+        ]);
+    }
+
     public function osmImportPreview(): JsonResponse
     {
         set_time_limit(300);

@@ -5,12 +5,13 @@ namespace App\Services;
 use App\Enums\FuelStatus;
 use App\Enums\SaleType;
 use App\Models\Report;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Collection;
 
 class AdminReportService
 {
     /** @return list<array<string, mixed>> */
-    public function list(int $limit = 80): array
+    public function list(int $limit = 150): array
     {
         return Report::query()
             ->with('station:id,name,network')
@@ -29,6 +30,15 @@ class AdminReportService
     public function unhide(Report $report): void
     {
         $report->update(['is_hidden' => false]);
+    }
+
+    public function delete(Report $report): void
+    {
+        if ($report->photo_path !== null && $report->photo_path !== '') {
+            Storage::disk('public')->delete($report->photo_path);
+        }
+
+        $report->delete();
     }
 
     public function visibleCount(): int
@@ -54,12 +64,15 @@ class AdminReportService
             'status_label' => FuelStatus::labelsFor($report->statuses)
                 ? implode(' · ', FuelStatus::labelsFor($report->statuses))
                 : $report->status->label(),
+            'queue_label' => $report->queue_size?->label(),
+            'fill_volume_label' => $report->fill_volume?->label(),
             'sale_type_labels' => SaleType::labelsFor($report->sale_types),
             'comment' => $report->comment,
             'photo_url' => $report->photoUrl(),
             'is_confirmation' => $report->is_confirmation,
             'is_hidden' => $report->is_hidden,
-            'created_at' => $report->created_at?->format('d.m.Y H:i'),
+            'created_at' => $report->created_at?->timezone(config('app.timezone'))->format('d.m.Y H:i'),
+            'created_at_iso' => $report->created_at?->toIso8601String(),
         ];
     }
 }
