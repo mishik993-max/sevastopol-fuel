@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { FUEL_TYPES } from '../constants';
 import { apiUrl } from '../api';
+import UiIcon from './UiIcon.vue';
 
 const props = defineProps({
     station: { type: Object, required: true },
@@ -43,31 +44,46 @@ async function confirm() {
 
 <template>
     <div class="modal-overlay" @click.self="emit('close')">
-        <div class="modal modal-sm">
-            <button class="close-btn" type="button" @click="emit('close')">✕</button>
-            <h2>Подтверждаю</h2>
-            <p class="hint">✓ Подтверждаю, что информация актуальна</p>
-
-            <fieldset>
-                <legend>Топливо</legend>
-                <div class="radio-grid">
-                    <label v-for="f in FUEL_TYPES" :key="f.value" class="radio-label">
-                        <input v-model="fuelType" type="radio" :value="f.value" />
-                        {{ f.label }}
-                    </label>
+        <div class="modal modal-sm modal--confirm">
+            <div class="modal-report-handle" aria-hidden="true" />
+            <div class="modal-report-header">
+                <span class="modal-report-icon" aria-hidden="true">
+                    <UiIcon name="thumbs-up" :size="18" color="#22C55E" />
+                </span>
+                <div class="modal-report-head-text">
+                    <h2>Подтверждаю</h2>
+                    <p>Информация на карте актуальна</p>
                 </div>
-            </fieldset>
+                <button class="close-btn close-btn--square" type="button" @click="emit('close')">
+                    <UiIcon name="x" :size="14" color="#7A7570" />
+                </button>
+            </div>
 
-            <p v-if="error" class="error">{{ error }}</p>
+            <div class="modal-report-form">
+                <fieldset>
+                    <legend class="section-label">Топливо</legend>
+                    <div class="radio-grid">
+                        <label v-for="f in FUEL_TYPES" :key="f.value" class="radio-label">
+                            <input v-model="fuelType" type="radio" :value="f.value" />
+                            {{ f.label }}
+                        </label>
+                    </div>
+                </fieldset>
 
-            <button
-                type="button"
-                class="btn btn-secondary btn-block"
-                :disabled="submitting"
-                @click="confirm"
-            >
-                {{ submitting ? '…' : 'Подтверждаю' }}
-            </button>
+                <p v-if="error" class="error">{{ error }}</p>
+            </div>
+
+            <div class="modal-report-footer">
+                <button
+                    type="button"
+                    class="btn btn-accent btn-block btn--confirm-green"
+                    :disabled="submitting"
+                    @click="confirm"
+                >
+                    <UiIcon v-if="!submitting" name="check" :size="16" color="#0A0807" />
+                    {{ submitting ? '…' : 'Подтверждаю' }}
+                </button>
+            </div>
         </div>
     </div>
 </template>

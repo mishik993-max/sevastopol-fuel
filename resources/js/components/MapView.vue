@@ -1,6 +1,6 @@
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue';
-import { MARKER_COLORS } from '../constants';
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { MARKER_COLORS, queueMarkerColor } from '../constants';
 import { isInBbox } from '../composables/useAppSettings';
 import { useYandexMaps } from '../composables/useYandexMaps';
 
@@ -13,6 +13,7 @@ const props = defineProps({
     pickMode: { type: Boolean, default: false },
     pickCoords: { type: Object, default: null },
     mapCenter: { type: Array, default: () => [44.605, 33.522] },
+    mapLayer: { type: String, default: 'fuel' },
 });
 
 const emit = defineEmits(['select', 'pick']);
@@ -27,6 +28,7 @@ const stationPlacemarks = [];
 let userPlacemark = null;
 let pickPlacemark = null;
 let mapClickHandler = null;
+let queueCircles = [];
 const marginAccessors = [];
 
 const cityCenter = () => props.mapCenter;
@@ -53,10 +55,12 @@ onMounted(async () => {
         });
 
         updateMapMargins();
-        renderMarkers();
+        renderMapLayers();
         mapReady = true;
         setupMapClick(props.pickMode);
         tryInitialCenter();
+        await nextTick();
+        requestAnimationFrame(() => invalidateSize());
     } catch (e) {
         mapError.value = e.message;
     } finally {
@@ -66,12 +70,14 @@ onMounted(async () => {
 
 onUnmounted(() => {
     clearMapMargins();
+    clearQueueCircles();
     setupMapClick(false);
     map?.destroy();
     map = null;
 });
 
-watch(() => props.stations, renderMarkers, { deep: true });
+watch(() => props.stations, renderMapLayers, { deep: true });
+watch(() => props.mapLayer, renderMapLayers);
 watch(() => [props.selectedId, props.sheetHeight], focusSelected);
 watch(() => props.sheetHeight, updateMapMargins);
 watch(() => props.userPosition, () => {
@@ -116,6 +122,87 @@ function markerColor(color) {
     return MARKER_COLORS[color] || MARKER_COLORS.black;
 }
 
+function placemarkIconColor(station) {
+    if (props.mapLayer === 'queue') {
+        return queueMarkerColor(station.queue_size);
+    }
+
+    return markerColor(station.marker_color);
+}
+
+function clearQueueCircles() {
+    if (!map) {
+        queueCircles = [];
+        return;
+    }
+
+    queueCircles.forEach((circle) => map.geoObjects.remove(circle));
+    queueCircles = [];
+}
+
+function queueCircleRadius(queueSize) {
+    switch (queueSize) {
+        case 'up_to_10':
+            return 350;
+        case '10_30':
+            return 650;
+        case '30_plus':
+            return 950;
+        default:
+            return 0;
+    }
+}
+
+function renderQueueCircles() {
+    clearQueueCircles();
+
+    if (!map || !ymaps || props.mapLayer !== 'queue') {
+        return;
+    }
+
+    props.stations.forEach((station) => {
+        const radius = queueCircleRadius(station.queue_size);
+        if (radius <= 0) {
+            return;
+        }
+
+        const color = queueMarkerColor(station.queue_size);
+        const circle = new ymaps.Circle(
+            [stationCoords(station), radius],
+            {},
+            {
+                fillColor: color,
+                fillOpacity: 0.22,
+                strokeColor: color,
+                strokeOpacity: 0.45,
+                strokeWidth: 2,
+                zIndex: 50,
+            },
+        );
+
+        circle.events.add('click', () => emit('select', station));
+        map.geoObjects.add(circle);
+        queueCircles.push(circle);
+    });
+}
+
+function renderMapLayers() {
+    if (!map || !ymaps) {
+        return;
+    }
+
+    renderQueueCircles();
+    renderMarkers();
+}
+
+function invalidateSize() {
+    if (!map?.container?.fitToViewport) {
+        return;
+    }
+
+    map.container.fitToViewport();
+}
+
 function stationCoords(station) {
     return [Number(station.latitude), Number(station.longitude)];
 }
@@ -138,7 +225,7 @@ function renderMarkers() {
             {},
             {
                 preset: 'islands#circleDotIcon',
-                iconColor: markerColor(station.marker_color),
+                iconColor: placemarkIconColor(station),
                 zIndex: selected ? 1000 : 100,
             },
         );
@@ -282,11 +369,13 @@ function renderUserMarker() {
     );
     map.geoObjects.add(userPlacemark);
 }
+
+defineExpose({ invalidateSize });
 </script>
 
 <template>
     <div class="map-wrap-inner">
-        <div v-if="mapLoading" class="map-status">Загрузка карты…</div>
+        <div v-if="mapLoading" class="map-status map-status--loading">Загрузка карты…</div>
         <div v-if="mapError" class="map-status map-error">
             <p>{{ mapError }}</p>
             <p class="hint">
@@ -298,6 +387,12 @@ function renderUserMarker() {
             </p>
         </div>
         <div v-if="pickMode" class="map-pick-hint">Нажмите на карту- где заправка</div>
+        <div v-if="mapLayer === 'queue' && !pickMode" class="map-queue-legend" aria-hidden="true">
+            <span class="map-queue-legend-title">Очереди</span>
+            <span class="map-queue-legend-item"><i class="map-queue-dot map-queue-dot--low"></i> до 10</span>
+            <span class="map-queue-legend-item"><i class="map-queue-dot map-queue-dot--mid"></i> 10–30</span>
+            <span class="map-queue-legend-item"><i class="map-queue-dot map-queue-dot--high"></i> 30+</span>
+        </div>
         <div ref="mapEl" class="map" :class="{ 'map--picking': pickMode }"></div>
     </div>
 </template>
@@ -310,6 +405,8 @@ function renderUserMarker() {
 }
 
 .map {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
 }
@@ -322,13 +419,19 @@ function renderUserMarker() {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: var(--bg);
     padding: 20px;
     text-align: center;
     font-size: 0.9rem;
+    pointer-events: none;
+}
+
+.map-status--loading {
+    background: var(--bg);
 }
 
 .map-error {
+    pointer-events: auto;
+    background: rgba(10, 8, 7, 0.94);
     color: #fca5a5;
 }
 
@@ -368,5 +471,54 @@ function renderUserMarker() {
     font-weight: 600;
     pointer-events: none;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.map-queue-legend {
+    position: absolute;
+    right: 12px;
+    bottom: calc(132px + var(--safe-bottom));
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(20, 16, 14, 0.88);
+    border: 1px solid var(--border);
+    font-size: 0.72rem;
+    color: var(--muted);
+    pointer-events: none;
+    backdrop-filter: blur(8px);
+}
+
+.map-queue-legend-title {
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 2px;
+}
+
+.map-queue-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.map-queue-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.map-queue-dot--low {
+    background: #eab308;
+}
+
+.map-queue-dot--mid {
+    background: #f97316;
+}
+
+.map-queue-dot--high {
+    background: #ef4444;
 }
 </style>

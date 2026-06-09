@@ -3,7 +3,8 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build && node scripts/copy-sw.cjs",
+        "icons": "node scripts/generate-icons.mjs",
+        "build": "npm run icons && vite build && node scripts/copy-sw.cjs",
         "dev": "vite",
         "mobile": "cmd /c scripts\\serve-mobile.bat",
         "push:test": "cmd /c scripts\\push-test.bat"
@@ -12,6 +13,7 @@
         "@tailwindcss/vite": "^4.0.0",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^3.1",
+        "sharp": "^0.34.5",
         "tailwindcss": "^4.0.0",
         "vite": "^8.0.0"
     },

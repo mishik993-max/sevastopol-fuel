@@ -67,14 +67,14 @@ window.addEventListener('resize', updateRect);
             }"
         />
 
-        <div class="tour-card">
+        <div class="tour-card tour-card--figma">
             <p class="tour-step-num">{{ stepIndex + 1 }} / {{ ONBOARDING_STEPS.length }}</p>
             <h3 class="tour-title">{{ step.title }}</h3>
             <p class="tour-text">{{ step.text }}</p>
             <div class="tour-actions">
-                <button type="button" class="btn btn-ghost btn-sm" @click="skip">Пропустить</button>
-                <button type="button" class="btn btn-ghost btn-sm" @click="openGuide">Справочник</button>
-                <button type="button" class="btn btn-primary btn-sm" @click="next">
+                <button type="button" class="btn btn-ghost btn-sm tour-btn-ghost" @click="skip">Пропустить</button>
+                <button type="button" class="btn btn-ghost btn-sm tour-btn-ghost" @click="openGuide">Справочник</button>
+                <button type="button" class="btn btn-accent btn-sm tour-btn-next" @click="next">
                     {{ isLast ? 'Готово' : 'Далее' }}
                 </button>
             </div>

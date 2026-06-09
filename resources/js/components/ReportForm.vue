@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { FUEL_TYPES, FUEL_STATUSES, QUEUE_SIZES, SALE_TYPES, FILL_VOLUMES } from '../constants';
+import { FUEL_TYPES, FUEL_STATUSES, QUEUE_SIZES, SALE_TYPES, FILL_VOLUMES, PHOTO_MAX_BYTES, PHOTO_ACCEPT_TYPES } from '../constants';
 import { apiUrl } from '../api';
+import UiIcon from './UiIcon.vue';
 
 const props = defineProps({
     station: { type: Object, required: true },
@@ -20,6 +21,9 @@ const photo = ref(null);
 const photoName = ref('');
 const submitting = ref(false);
 const error = ref(null);
+const success = ref(false);
+
+const photoMaxMb = PHOTO_MAX_BYTES / (1024 * 1024);
 
 const hasNoneStatus = computed(() => statuses.value.includes('none'));
 
@@ -91,8 +95,12 @@ async function submit() {
             body: formData,
         });
         const json = await res.json();
-        if (!res.ok) throw new Error(json.message || 'Ошибка отправки');
+        if (!res.ok) {
+            const photoError = json.errors?.photo?.[0];
+            throw new Error(photoError || json.message || 'Ошибка отправки');
+        }
         emit('submit', json.data);
+        success.value = true;
     } catch (e) {
         error.value = e.message;
     } finally {
@@ -101,19 +109,71 @@ async function submit() {
 }
 
 function onPhotoChange(e) {
-    const file = e.target.files[0] || null;
+    const input = e.target;
+    const file = input.files[0] || null;
+    error.value = null;
+
+    if (!file) {
+        photo.value = null;
+        photoName.value = '';
+        return;
+    }
+
+    if (!PHOTO_ACCEPT_TYPES.includes(file.type)) {
+        error.value = 'Только JPG или PNG';
+        input.value = '';
+        photo.value = null;
+        photoName.value = '';
+        return;
+    }
+
+    if (file.size > PHOTO_MAX_BYTES) {
+        error.value = `Фото слишком большое (максимум ${photoMaxMb} МБ)`;
+        input.value = '';
+        photo.value = null;
+        photoName.value = '';
+        return;
+    }
+
     photo.value = file;
-    photoName.value = file ? file.name : '';
+    photoName.value = file.name;
 }
 </script>
 
 <template>
-    <div class="modal-overlay" @click.self="emit('close')">
-        <div class="modal">
-            <button class="close-btn" type="button" @click="emit('close')">✕</button>
-            <h2>Сообщить- {{ station.network }} {{ station.name }}</h2>
+    <div class="modal-overlay modal-overlay--report" @click.self="emit('close')">
+        <div class="modal modal--report">
+            <template v-if="success">
+                <div class="report-success">
+                    <div class="report-success__icon">
+                        <UiIcon name="check" :size="32" color="#22C55E" />
+                    </div>
+                    <h2 class="report-success__title">Спасибо за отчёт!</h2>
+                    <p class="report-success__text">
+                        Ваша информация поможет другим водителям Севастополя
+                    </p>
+                    <button type="button" class="btn btn-secondary btn-block" @click="emit('close')">
+                        Вернуться
+                    </button>
+                </div>
+            </template>
 
-            <form @submit.prevent="submit">
+            <template v-else>
+                <div class="modal-report-handle" aria-hidden="true" />
+                <div class="modal-report-header">
+                    <span class="modal-report-icon" aria-hidden="true">
+                        <UiIcon name="message-square" :size="18" color="#E8B84B" />
+                    </span>
+                    <div class="modal-report-head-text">
+                        <h2>Сообщить об АЗС</h2>
+                        <p>{{ station.network }} · {{ station.address || station.name }}</p>
+                    </div>
+                    <button class="close-btn close-btn--square" type="button" @click="emit('close')">
+                        <UiIcon name="x" :size="14" color="#7A7570" />
+                    </button>
+                </div>
+
+                <form class="modal-report-form" @submit.prevent="submit">
                 <fieldset>
                     <legend>Какое топливо?</legend>
                     <div class="radio-grid">
@@ -160,7 +220,7 @@ function onPhotoChange(e) {
                 </fieldset>
 
                 <fieldset>
-                    <legend>Очередь?</legend>
+                    <legend class="section-label">Очередь?</legend>
                     <div class="radio-grid">
                         <label v-for="q in QUEUE_SIZES" :key="q.value" class="radio-label">
                             <input v-model="queueSize" type="radio" :value="q.value" />
@@ -175,10 +235,14 @@ function onPhotoChange(e) {
                 </label>
 
                 <div class="field">
-                    <span class="field-label">Фото (необязательно)</span>
-                    <label class="file-upload">
-                        <span class="file-upload-btn">Выбрать</span>
-                        <span class="file-upload-name">{{ photoName || 'Файл не выбран' }}</span>
+                    <span class="section-label">Фото (необязательно)</span>
+                    <label class="file-upload-dashed">
+                        <span class="file-upload-dashed-icon">
+                            <UiIcon name="camera" :size="22" color="#4A4845" />
+                        </span>
+                        <span class="file-upload-dashed-text">
+                            {{ photoName || `Нажмите, чтобы добавить фото (до ${photoMaxMb} МБ)` }}
+                        </span>
                         <input
                             type="file"
                             class="file-upload-input"
@@ -189,11 +253,15 @@ function onPhotoChange(e) {
                 </div>
 
                 <p v-if="error" class="error">{{ error }}</p>
-
-                <button type="submit" class="btn btn-primary btn-block" :disabled="submitting">
-                    {{ submitting ? 'Отправка…' : 'Отправить' }}
-                </button>
             </form>
+
+            <div class="modal-report-footer">
+                <button type="button" class="btn btn-accent btn-block" :disabled="submitting" @click="submit">
+                    <UiIcon v-if="!submitting" name="check" :size="16" color="#0A0807" />
+                    {{ submitting ? 'Отправка…' : 'Отправить отчёт' }}
+                </button>
+            </div>
+            </template>
         </div>
     </div>
 </template>

@@ -56,4 +56,39 @@ class StationApiTest extends TestCase
         $this->assertEquals(2, Report::query()->count());
         $this->assertTrue(Report::query()->latest('id')->first()->is_confirmation);
     }
+
+    public function test_station_queue_size_follows_selected_fuel(): void
+    {
+        $station = Station::query()->create([
+            'name' => 'Тест',
+            'network' => 'WOG',
+            'address' => 'ул. Тест 1',
+            'latitude' => 44.6,
+            'longitude' => 33.5,
+        ]);
+
+        $this->postJson('/api/reports', [
+            'station_id' => $station->id,
+            'fuel_type' => 'a95',
+            'statuses' => ['available'],
+            'queue_size' => '30_plus',
+            'sale_types' => ['regular'],
+        ])->assertCreated();
+
+        $this->postJson('/api/reports', [
+            'station_id' => $station->id,
+            'fuel_type' => 'dt',
+            'statuses' => ['available'],
+            'queue_size' => 'none',
+            'sale_types' => ['regular'],
+        ])->assertCreated();
+
+        $this->getJson('/api/stations?fuel=dt')
+            ->assertOk()
+            ->assertJsonPath('data.0.queue_size', 'none');
+
+        $this->getJson('/api/stations?fuel=a95')
+            ->assertOk()
+            ->assertJsonPath('data.0.queue_size', '30_plus');
+    }
 }

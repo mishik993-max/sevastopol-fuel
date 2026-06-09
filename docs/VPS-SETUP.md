@@ -215,7 +215,7 @@ server {
     add_header X-Frame-Options "SAMEORIGIN";
     add_header X-Content-Type-Options "nosniff";
 
-    client_max_body_size 3M;
+    client_max_body_size 6M;
 
     location / {
         try_files $uri $uri/ /index.php?$query_string;

@@ -87,3 +87,34 @@ export const MARKER_COLORS = {
     red: '#ef4444',
     black: '#374151',
 };
+
+/** Должно совпадать с config/reports.php `photo_max_kb`. */
+export const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+export const PHOTO_ACCEPT_TYPES = ['image/jpeg', 'image/png'];
+
+export const QUEUE_HEAT_WEIGHTS = {
+    none: 0,
+    up_to_10: 0.35,
+    '10_30': 0.65,
+    '30_plus': 1,
+};
+
+export const QUEUE_MARKER_COLORS = {
+    none: '#6b7280',
+    up_to_10: '#eab308',
+    '10_30': '#f97316',
+    '30_plus': '#ef4444',
+};
+
+export function queueHeatWeight(queueSize) {
+    if (!queueSize) {
+        return 0;
+    }
+
+    return QUEUE_HEAT_WEIGHTS[queueSize] ?? 0;
+}
+
+export function queueMarkerColor(queueSize) {
+    return QUEUE_MARKER_COLORS[queueSize] ?? QUEUE_MARKER_COLORS.none;
+}

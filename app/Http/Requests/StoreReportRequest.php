@@ -34,7 +34,24 @@ class StoreReportRequest extends FormRequest
             'sale_types.*' => ['required', 'string', Rule::enum(SaleType::class)],
             'fill_volume' => ['nullable', Rule::enum(FillVolume::class)],
             'comment' => ['nullable', 'string', 'max:500'],
-            'photo' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:2048'],
+            'photo' => [
+                'nullable',
+                'image',
+                'mimes:jpeg,jpg,png',
+                'max:'.config('reports.photo_max_kb', 5120),
+            ],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        $maxMb = (int) ceil(config('reports.photo_max_kb', 5120) / 1024);
+
+        return [
+            'photo.image' => 'Фото должно быть в формате JPG или PNG.',
+            'photo.mimes' => 'Фото должно быть в формате JPG или PNG.',
+            'photo.max' => "Фото слишком большое (максимум {$maxMb} МБ).",
         ];
     }
 }

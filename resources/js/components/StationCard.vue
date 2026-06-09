@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { FUEL_TYPES } from '../constants';
 import PhotoLightbox from './PhotoLightbox.vue';
+import UiIcon from './UiIcon.vue';
 
 const props = defineProps({
     station: { type: Object, required: true },
@@ -166,13 +167,25 @@ function openPhoto(url) {
         </button>
 
         <div class="station-sheet-body">
-            <header class="station-head">
-                <div v-if="showNetwork" class="station-brand">{{ station.network }}</div>
-                <h2 class="station-title">{{ displayTitle }}</h2>
-                <p class="station-address">{{ station.address }}</p>
-                <p v-if="station.distance_m" class="station-distance">
-                    {{ Math.round(station.distance_m / 100) / 10 }} км от вас
-                </p>
+            <header class="station-head station-head--figma">
+                <div class="station-head-top">
+                    <div>
+                        <h2 class="station-title">{{ displayTitle }}</h2>
+                        <div class="station-head-meta">
+                            <span v-if="showNetwork" class="station-network-badge">{{ station.network }}</span>
+                            <span class="station-address-inline">{{ station.address }}</span>
+                        </div>
+                    </div>
+                    <button
+                        v-if="station.distance_m"
+                        type="button"
+                        class="station-nav-btn"
+                        @click.stop
+                    >
+                        <UiIcon name="navigation" :size="11" color="currentColor" />
+                        {{ Math.round(station.distance_m / 100) / 10 }} км
+                    </button>
+                </div>
             </header>
 
             <section v-if="activeFuel" class="status-card" :class="`status-card--${activeFuel.status}`">
@@ -321,17 +334,20 @@ function openPhoto(url) {
             </section>
         </div>
 
-        <footer class="station-sheet-footer">
-            <button type="button" class="action-btn action-btn--primary" @click="emit('report')">
+        <footer class="station-sheet-footer station-sheet-footer--figma">
+            <button type="button" class="action-btn action-btn--report" @click="emit('report')">
+                <UiIcon name="message-square" :size="13" color="currentColor" />
                 Сообщить
             </button>
-            <button type="button" class="action-btn action-btn--secondary" @click="emit('confirm')">
+            <button type="button" class="action-btn action-btn--confirm" @click="emit('confirm')">
+                <UiIcon name="thumbs-up" :size="13" color="currentColor" />
                 Подтверждаю
             </button>
-            <button type="button" class="action-btn action-btn--text" @click="emit('edit')">
-                Исправить название или место
+            <button type="button" class="action-btn action-btn--edit" @click="emit('edit')">
+                <UiIcon name="alert-triangle" :size="13" color="currentColor" />
+                Исправить
             </button>
-            <button type="button" class="action-btn action-btn--text" @click="emit('closed')">
+            <button type="button" class="action-btn action-btn--muted" @click="emit('closed')">
                 {{ closureButtonLabel }}
             </button>
         </footer>

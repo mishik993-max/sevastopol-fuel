@@ -168,7 +168,7 @@ server {
     root /var/www/sevastopol-fuel/public;
     index index.php;
 
-    client_max_body_size 3M;
+    client_max_body_size 6M;
 
     location / {
         try_files $uri $uri/ /index.php?$query_string;

@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import { useAppSettings } from '../composables/useAppSettings';
 import { usePushNotifications } from '../composables/usePushNotifications';
 import { swRegistrationReady } from '../swRegister';
+import UiIcon from './UiIcon.vue';
 
 const { supported, permissionState, subscribe } = usePushNotifications();
 const { qrReminderLabel } = useAppSettings();
@@ -45,29 +46,30 @@ function dismiss() {
 </script>
 
 <template>
-    <div v-if="supported && visible" class="push-prompt">
+    <div v-if="supported && visible" class="push-prompt push-prompt--gold">
+        <span class="push-prompt-icon" aria-hidden="true">
+            <UiIcon name="bell" :size="16" color="#C8A840" />
+        </span>
         <div class="push-text">
-            <strong>Уведомления о QR</strong>
-            <span>{{ qrReminderLabel }}</span>
+            <span class="push-text-main">Включите уведомления о QR на АЗС</span>
+            <span class="push-text-sub">{{ qrReminderLabel }}</span>
             <span v-if="error" class="push-error">{{ error }}</span>
-            <span v-else-if="!swReady && !loading" class="push-hint">
-                Загрузка Service Worker… подождите пару секунд.
-            </span>
-            <span v-else-if="blocked" class="push-hint">
-                Уведомления заблокированы в браузере. Замок в адресной строке → Уведомления → Разрешить.
-            </span>
+            <span v-else-if="!swReady && !loading" class="push-hint">Загрузка Service Worker…</span>
+            <span v-else-if="blocked" class="push-hint">Уведомления заблокированы в браузере</span>
         </div>
         <div class="push-actions">
             <button
                 v-if="!blocked"
                 type="button"
-                class="btn btn-primary btn-sm"
+                class="push-enable-btn"
                 :disabled="loading || !swReady"
                 @click="enable"
             >
-                {{ loading ? '…' : (swReady ? 'Включить' : 'Загрузка…') }}
+                {{ loading ? '…' : 'Включить' }}
             </button>
-            <button type="button" class="btn btn-ghost btn-sm" @click="dismiss">Позже</button>
+            <button type="button" class="push-dismiss-btn" aria-label="Закрыть" @click="dismiss">
+                <UiIcon name="x" :size="13" color="#7A7570" />
+            </button>
         </div>
     </div>
 </template>

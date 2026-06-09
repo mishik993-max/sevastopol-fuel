@@ -253,7 +253,7 @@ php artisan view:cache
 
 - **Web Push работает только по HTTPS** (кроме localhost).
 - Для PWA пользователи должны «Добавить на экран» или установить через браузер.
-- Загрузка фото: до 2 МБ, jpg/png, хранятся в `storage/app/public/reports/`.
+- Загрузка фото: до 5 МБ, jpg/png, хранятся в `storage/app/public/reports/`.
 - Полная инструкция с покупки VPS: [VPS-SETUP.md](VPS-SETUP.md).
 - Нагрузочные тесты: [LOAD-TEST.md](LOAD-TEST.md).
 

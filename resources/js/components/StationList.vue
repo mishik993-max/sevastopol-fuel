@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
-import { distanceM, FUEL_TYPES, MARKER_COLORS } from '../constants';
+import { distanceM, FUEL_TYPES } from '../constants';
+import UiIcon from './UiIcon.vue';
 
 const props = defineProps({
     stations: { type: Array, default: () => [] },
@@ -11,6 +12,20 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['select']);
+
+const STATUS_COLORS = {
+    available: '#22C55E',
+    low: '#EAB308',
+    none: '#EF4444',
+    unknown: '#6B7280',
+};
+
+const STATUS_BG = {
+    available: 'rgba(34,197,94,0.12)',
+    low: 'rgba(234,179,8,0.12)',
+    none: 'rgba(239,68,68,0.12)',
+    unknown: 'rgba(107,114,128,0.12)',
+};
 
 const sortedStations = computed(() => {
     const list = props.stations.map((station) => {
@@ -47,10 +62,6 @@ function fuelLabel(value) {
     return FUEL_TYPES.find((f) => f.value === value)?.label ?? value;
 }
 
-function fuelFor(station) {
-    return station.fuels?.find((f) => f.fuel_type === props.selectedFuel);
-}
-
 function displayTitle(station) {
     const name = (station.name || '').trim();
     const network = (station.network || '').trim();
@@ -59,13 +70,11 @@ function displayTitle(station) {
         return network || name || 'АЗС';
     }
 
+    if (name.toLowerCase().startsWith(network.toLowerCase())) {
+        return name.slice(network.length).trim() || name;
+    }
+
     return name;
-}
-
-function statusClass(station) {
-    const fuel = fuelFor(station);
-
-    return fuel ? `station-card--${fuel.status}` : 'station-card--unknown';
 }
 
 function formatDistance(meters) {
@@ -74,82 +83,71 @@ function formatDistance(meters) {
     return `${Math.round(meters / 100) / 10} км`;
 }
 
-function metaTags(station) {
-    const fuel = fuelFor(station);
-    const tags = [];
+function fuelBadgeStyle(status) {
+    const key = status in STATUS_COLORS ? status : 'unknown';
 
-    for (const label of fuel?.sale_type_labels ?? []) {
-        if (label === 'Нужен QR') {
-            tags.push({ text: label, kind: 'qr' });
-        } else if (label === 'По талонам') {
-            tags.push({ text: label, kind: 'voucher' });
-        } else if (label !== 'Обычный') {
-            tags.push({ text: label, kind: 'meta' });
-        }
+    return {
+        color: STATUS_COLORS[key],
+        backgroundColor: STATUS_BG[key],
+    };
+}
+
+function freshnessShort(station) {
+    const fuel = station.fuels?.find((f) => f.fuel_type === props.selectedFuel) ?? station.fuels?.[0];
+    const label = fuel?.freshness_label ?? '';
+
+    if (!label || label === 'Нет данных') {
+        return '';
     }
 
-    if (fuel?.fill_volume_label && fuel.status !== 'none') {
-        tags.push({ text: fuel.fill_volume_label, kind: 'volume' });
-    }
-
-    if (fuel?.freshness === 'fresh') {
-        tags.push({ text: 'Свежее', kind: 'fresh' });
-    }
-
-    return tags;
+    return label.replace('Подтверждено ', '').replace('Вероятно актуально, ', '');
 }
 </script>
 
 <template>
     <div class="station-list-wrap">
         <p v-if="sortByDistance" class="station-list-hint">Сортировка: ближайшие сверху</p>
-        <div v-if="sortedStations.length" class="station-card-grid">
+        <div v-if="sortedStations.length" class="station-list-cards">
             <button
                 v-for="station in sortedStations"
                 :key="station.id"
                 type="button"
-                class="station-card"
-                :class="[
-                    statusClass(station),
-                    { 'station-card--selected': station.id === selectedId },
-                ]"
+                class="station-list-card"
+                :class="{ 'station-list-card--selected': station.id === selectedId }"
                 @click="emit('select', station)"
             >
-                <div class="station-card-accent" />
-                <div class="station-card-inner">
-                    <div class="station-card-head">
-                        <span class="station-card-network">{{ station.network }}</span>
-                        <span
-                            v-if="fuelFor(station)"
-                            class="station-card-status"
-                            :class="`station-card-status--${fuelFor(station).status}`"
-                        >
-                            {{ fuelFor(station).status_label }}
-                        </span>
+                <div class="station-list-card-head">
+                    <span class="station-list-network">{{ station.network }}</span>
+                    <div class="station-list-card-main">
+                        <div class="station-list-title">{{ displayTitle(station) }}</div>
+                        <div class="station-list-address">{{ station.address }}</div>
                     </div>
-
-                    <h3 class="station-card-title">{{ displayTitle(station) }}</h3>
-                    <p class="station-card-address">{{ station.address }}</p>
-
-                    <div class="station-card-footer">
-                        <div v-if="metaTags(station).length" class="station-card-tags">
-                            <span
-                                v-for="(tag, i) in metaTags(station)"
-                                :key="i"
-                                class="station-card-tag"
-                                :class="`station-card-tag--${tag.kind}`"
-                            >
-                                {{ tag.text }}
-                            </span>
-                        </div>
-                        <span v-if="formatDistance(station._sortDist)" class="station-card-distance">
+                    <div class="station-list-card-side">
+                        <div v-if="formatDistance(station._sortDist)" class="station-list-distance">
+                            <UiIcon name="navigation" :size="11" color="currentColor" />
                             {{ formatDistance(station._sortDist) }}
-                        </span>
-                        <span v-else class="station-card-fuel">{{ fuelLabel(selectedFuel) }}</span>
+                        </div>
+                        <div v-if="freshnessShort(station)" class="station-list-updated">
+                            {{ freshnessShort(station) }}
+                        </div>
                     </div>
+                </div>
+                <div class="station-list-fuels">
+                    <span
+                        v-for="fuel in station.fuels"
+                        :key="fuel.fuel_type"
+                        class="station-list-fuel-badge"
+                        :style="fuelBadgeStyle(fuel.status)"
+                    >
+                        <i class="station-list-fuel-dot" :style="{ backgroundColor: STATUS_COLORS[fuel.status] ?? STATUS_COLORS.unknown }" />
+                        {{ fuelLabel(fuel.fuel_type) }}
+                    </span>
                 </div>
             </button>
         </div>
         <p v-else class="station-list-empty">Нет АЗС по выбранным фильтрам</p>
+        <p v-if="sortedStations.length" class="station-list-footer">
+            Показано {{ sortedStations.length }} АЗС
+        </p>
     </div>
 </template>

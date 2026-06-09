@@ -18,6 +18,7 @@ import LegalDocs from './components/LegalDocs.vue';
 import LegalLinks from './components/LegalLinks.vue';
 import AdminPanel from './components/AdminPanel.vue';
 import CookieBanner from './components/CookieBanner.vue';
+import UiIcon from './components/UiIcon.vue';
 import { FUEL_TYPES } from './constants';
 import { apiUrl } from './api';
 import { useStations } from './composables/useStations';
@@ -57,6 +58,8 @@ const mapPickMode = ref(false);
 const pickCoords = ref(null);
 const mode = ref('all');
 const viewMode = ref('map');
+const mapLayer = ref('fuel');
+const mapViewRef = ref(null);
 const bottomSheetEl = ref(null);
 const sheetHeightPx = ref(0);
 
@@ -97,6 +100,15 @@ watch(
     { flush: 'post' },
 );
 
+watch(viewMode, async (mode) => {
+    if (mode !== 'map') {
+        return;
+    }
+
+    await nextTick();
+    mapViewRef.value?.invalidateSize?.();
+});
+
 onUnmounted(teardownSheetObserver);
 
 const availableNetworks = computed(() => {
@@ -118,18 +130,6 @@ const availableNetworks = computed(() => {
             return b[1] - a[1];
         })
         .map(([network, count]) => ({ value: network, label: network, count }));
-});
-
-const filterSummary = computed(() => {
-    const fuel = FUEL_TYPES.find((f) => f.value === selectedFuel.value)?.label ?? '';
-    const sale = selectedSaleType.value === 'voucher'
-        ? 'талоны'
-        : selectedSaleType.value === 'qr'
-            ? 'QR'
-            : null;
-    const network = selectedNetwork.value ?? 'все сети';
-
-    return [fuel, sale, network].filter(Boolean).join(' · ');
 });
 
 const filteredStations = computed(() => {
@@ -206,6 +206,10 @@ function onCookieAccept() {
     cookieConsentGranted.value = true;
 }
 
+function onCookieDecline() {
+    cookieConsentGranted.value = true;
+}
+
 watch(selectedFuel, () => {
     if (mode.value === 'nearby' && position.value) {
         fetchNearby(position.value.lat, position.value.lng, selectedFuel.value);
@@ -269,6 +273,11 @@ function refreshList() {
 
 function reloadPage() {
     window.location.reload();
+}
+
+function toggleMapLayer() {
+    mapLayer.value = mapLayer.value === 'fuel' ? 'queue' : 'fuel';
+    nextTick(() => mapViewRef.value?.invalidateSize?.());
 }
 
 async function shareApp() {
@@ -439,49 +448,74 @@ async function onStationClosed() {
 
     <div v-else class="app">
         <header class="topbar">
-            <div class="topbar-row">
+            <div class="topbar-row topbar-row--title">
                 <h1>Топливо</h1>
                 <div class="topbar-actions">
                     <button type="button" class="topbar-icon-btn" data-tour="help" title="Справочник" @click="showHelp = true">
-                        ?
+                        <UiIcon name="help-circle" :size="16" color="#7A7570" />
                     </button>
                     <button type="button" class="topbar-icon-btn" title="Статистика" @click="showStats = true">
-                        %
+                        <UiIcon name="gauge" :size="16" color="#7A7570" />
                     </button>
                     <button type="button" class="topbar-icon-btn" title="Обратная связь" @click="showFeedback = true">
-                        ✉
+                        <UiIcon name="message-square" :size="16" color="#7A7570" />
                     </button>
-                    <span v-if="filteredStations.length" class="station-count">{{ filteredStations.length }}</span>
-                    <div class="view-toggle" data-tour="view">
-                        <button
-                            type="button"
-                            class="view-toggle-btn"
-                            :class="{ active: viewMode === 'map' }"
-                            @click="viewMode = 'map'"
-                        >
-                            Карта
-                        </button>
-                        <button
-                            type="button"
-                            class="view-toggle-btn"
-                            :class="{ active: viewMode === 'list' }"
-                            @click="viewMode = 'list'"
-                        >
-                            Список
-                        </button>
-                    </div>
+                    <button
+                        v-if="canShare"
+                        type="button"
+                        class="topbar-icon-btn"
+                        title="Поделиться"
+                        aria-label="Поделиться"
+                        :disabled="shareLoading"
+                        @click="shareApp"
+                    >
+                        <UiIcon name="navigation" :size="16" color="#7A7570" />
+                    </button>
                 </div>
             </div>
-            <button
-                type="button"
-                class="filter-collapse-btn"
-                :aria-expanded="filtersOpen"
-                @click="filtersOpen = !filtersOpen"
-            >
-                <span class="filter-collapse-label">Фильтры</span>
-                <span class="filter-collapse-summary">{{ filterSummary }}</span>
-                <span class="filter-collapse-chevron" :class="{ 'filter-collapse-chevron--open': filtersOpen }">▼</span>
-            </button>
+
+            <div class="topbar-row topbar-row--meta">
+                <div v-if="filteredStations.length" class="station-count-pill">
+                    <UiIcon name="map-pin" :size="10" color="currentColor" />
+                    {{ filteredStations.length }} АЗС
+                </div>
+
+                <div class="view-toggle" data-tour="view">
+                    <button
+                        type="button"
+                        class="view-toggle-btn"
+                        :class="{ active: viewMode === 'map' }"
+                        @click="viewMode = 'map'"
+                    >
+                        <UiIcon name="map-pin" :size="10" :color="viewMode === 'map' ? '#0A0807' : '#7A7570'" />
+                        Карта
+                    </button>
+                    <button
+                        type="button"
+                        class="view-toggle-btn"
+                        :class="{ active: viewMode === 'list' }"
+                        @click="viewMode = 'list'"
+                    >
+                        <UiIcon name="list" :size="10" :color="viewMode === 'list' ? '#0A0807' : '#7A7570'" />
+                        Список
+                    </button>
+                </div>
+
+                <button
+                    type="button"
+                    class="filter-toggle-btn"
+                    :class="{ 'filter-toggle-btn--open': filtersOpen }"
+                    :aria-expanded="filtersOpen"
+                    @click="filtersOpen = !filtersOpen"
+                >
+                    Фильтры
+                    <UiIcon
+                        :name="filtersOpen ? 'chevron-up' : 'chevron-down'"
+                        :size="12"
+                        color="currentColor"
+                    />
+                </button>
+            </div>
 
             <div class="filter-panel" :class="{ 'filter-panel--open': filtersOpen }">
                 <div class="filter-row filter-row--fuel" data-tour="fuel">
@@ -521,15 +555,24 @@ async function onStationClosed() {
                     >
                         QR
                     </button>
-                </div>
-                <div class="filter-row filter-row--network" data-tour="network">
+                    <button
+                        v-if="viewMode === 'map'"
+                        type="button"
+                        class="network-btn network-btn--compact"
+                        :class="{ active: mapLayer === 'queue' }"
+                        @click="toggleMapLayer"
+                    >
+                        {{ mapLayer === 'queue' ? 'Топливо' : 'Очереди' }}
+                    </button>
+                    <span class="filter-row-divider" aria-hidden="true"></span>
                     <button
                         type="button"
                         class="network-btn network-btn--compact"
+                        data-tour="network"
                         :class="{ active: selectedNetwork === null }"
                         @click="selectedNetwork = null"
                     >
-                        Все
+                        Все сети
                     </button>
                     <button
                         v-for="n in availableNetworks"
@@ -550,12 +593,14 @@ async function onStationClosed() {
 
         <div class="map-wrap" :class="{ 'map-wrap--list': viewMode === 'list' }" data-tour="map">
             <MapView
+                ref="mapViewRef"
                 v-show="viewMode === 'map'"
                 :stations="filteredStations"
                 :selected-id="selectedStation?.id"
                 :user-position="position"
                 :geo-resolved="geoResolved"
                 :map-center="mapCenter"
+                :map-layer="mapLayer"
                 :sheet-height="viewMode === 'map' ? sheetHeightPx : 0"
                 :pick-mode="(showAddStation || showEditStation) && mapPickMode"
                 :pick-coords="pickCoords"
@@ -573,46 +618,47 @@ async function onStationClosed() {
                 @select="selectStation"
             />
 
-            <div v-show="viewMode === 'map'" class="map-fabs" data-tour="nearby">
-                <button type="button" class="map-fab map-fab--primary" :disabled="geoLoading" @click="nearby">
-                    {{ geoLoading ? '…' : 'Рядом' }}
-                </button>
-                <button v-if="mode === 'nearby'" type="button" class="map-fab" @click="showAll">
-                    Все
-                </button>
+            <div
+                v-show="viewMode === 'map' && !showAddStation && !showEditStation"
+                class="map-fab-bar"
+                :class="{ 'map-fab-bar--sheet': !!selectedStation && !showReport && !showConfirm && !showEditStation }"
+                :style="sheetHeightPx > 0 ? { bottom: `${sheetHeightPx + 16}px` } : undefined"
+                data-tour="nearby"
+            >
                 <button
-                    v-if="canShare"
                     type="button"
-                    class="map-fab map-fab--share"
-                    title="Поделиться"
-                    aria-label="Поделиться"
-                    :disabled="shareLoading"
-                    @click="shareApp"
+                    class="map-fab-circle"
+                    title="Обновить страницу"
+                    aria-label="Обновить страницу"
+                    @click="reloadPage"
                 >
-                    ↗
+                    ↻
+                </button>
+
+                <div class="map-fab-center">
+                    <button
+                        type="button"
+                        class="map-fab-nearby"
+                        :disabled="geoLoading"
+                        @click="nearby"
+                    >
+                        {{ geoLoading ? '…' : 'Рядом' }}
+                    </button>
+                    <button v-if="mode === 'nearby'" type="button" class="map-fab-secondary" @click="showAll">
+                        Все
+                    </button>
+                </div>
+
+                <button
+                    type="button"
+                    class="map-fab-circle map-fab-circle--action"
+                    title="Добавить АЗС"
+                    aria-label="Добавить АЗС"
+                    @click="openAddStation"
+                >
+                    +
                 </button>
             </div>
-
-            <button
-                v-show="viewMode === 'map' && !showAddStation && !showEditStation"
-                type="button"
-                class="map-fab map-fab--refresh"
-                title="Обновить страницу"
-                aria-label="Обновить страницу"
-                @click="reloadPage"
-            >
-                ↻
-            </button>
-
-            <button
-                v-show="viewMode === 'map' && !showAddStation && !showEditStation"
-                type="button"
-                class="map-fab map-fab--add"
-                title="Добавить АЗС"
-                @click="openAddStation"
-            >
-                +
-            </button>
 
             <PwaInstallButton v-show="viewMode === 'map'" />
 
@@ -715,6 +761,7 @@ async function onStationClosed() {
         <CookieBanner
             v-if="!cookieConsentGranted"
             @accept="onCookieAccept"
+            @decline="onCookieDecline"
             @open-legal="(id) => { legalDocId = id; showLegal = true; }"
         />
 
