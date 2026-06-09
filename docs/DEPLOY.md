@@ -228,7 +228,9 @@ php artisan notifications:qr-reminder-tick
 
 ```bash
 cd /var/www/sevastopol-fuel
+git checkout -- public/sw.js
 git pull
+
 composer install --no-dev --optimize-autoloader
 npm ci && npm run build
 php artisan migrate --force

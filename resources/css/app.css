@@ -3001,8 +3001,6 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
     height: 100%;
     min-height: var(--app-height);
     padding: 0;
@@ -3019,29 +3017,41 @@ body {
     opacity: 0.5;
 }
 
-.geo-gate--figma .geo-gate-content {
+.geo-gate--figma .geo-gate-scroll {
     position: relative;
     z-index: 1;
     flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+}
+
+.geo-gate--figma .geo-gate-main {
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    padding:
+        calc(32px + var(--safe-top))
+        28px
+        24px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.geo-gate--figma .geo-gate-brand {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding:
-        calc(24px + var(--safe-top))
-        calc(28px + var(--safe-right))
-        calc(24px + var(--safe-bottom))
-        calc(28px + var(--safe-left));
-}
-
-.geo-gate--figma .geo-gate-logo-wrap {
-    margin-top: 24px;
-    margin-bottom: 24px;
+    margin-bottom: 28px;
 }
 
 .geo-gate--figma .geo-gate-logo {
     border-radius: 24px;
     overflow: hidden;
     box-shadow: 0 8px 32px rgba(232, 184, 75, 0.3), 0 0 0 1px rgba(232, 184, 75, 0.2);
+    margin-bottom: 24px;
 }
 
 .geo-gate--figma .geo-gate-title {
@@ -3050,36 +3060,34 @@ body {
     font-weight: 800;
     letter-spacing: -0.01em;
     text-align: center;
-    margin-bottom: 6px;
+    margin: 0 0 6px;
 }
 
 .geo-gate--figma .geo-gate-subtitle {
+    margin: 0;
     font-size: 0.8125rem;
     color: var(--gold);
     letter-spacing: 0.14em;
     text-transform: uppercase;
     font-weight: 600;
     text-align: center;
-    margin-bottom: 32px;
 }
 
 .geo-gate--figma .geo-gate-card {
     width: 100%;
-    max-width: 440px;
     background: #131210;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 18px;
     padding: 20px;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     box-shadow: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    text-align: left;
 }
 
 .geo-gate--figma .geo-gate-card-head {
     display: flex;
     align-items: flex-start;
     gap: 14px;
-    margin-bottom: 16px;
 }
 
 .geo-gate--figma .geo-gate-card-icon {
@@ -3094,21 +3102,32 @@ body {
     flex-shrink: 0;
 }
 
+.geo-gate--figma .geo-gate-card-copy {
+    min-width: 0;
+}
+
 .geo-gate--figma .geo-gate-card-title {
+    margin: 0 0 6px;
     font-size: 0.875rem;
     font-weight: 700;
     color: var(--text);
-    margin-bottom: 5px;
+    line-height: 1.35;
 }
 
 .geo-gate--figma .geo-gate-card-text {
+    margin: 0;
     font-size: 0.75rem;
     color: #7a7570;
-    line-height: 1.6;
-    margin: 0;
+    line-height: 1.55;
 }
 
-.geo-gate--figma .geo-gate-card-row {
+.geo-gate--figma .geo-gate-trust-list {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+}
+
+.geo-gate--figma .geo-gate-trust-list li {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -3116,11 +3135,35 @@ body {
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     font-size: 0.75rem;
     color: #5a5855;
+    line-height: 1.4;
+}
+
+.geo-gate--figma .geo-gate-alert {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+}
+
+.geo-gate--figma .geo-gate-alert--error {
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.geo-gate--figma .geo-gate-alert p {
+    margin: 0;
+}
+
+.geo-gate--figma .geo-gate-alert-hint {
+    margin-top: 8px !important;
+    font-size: 0.75rem;
+    color: #a09890;
 }
 
 .geo-gate--figma .geo-gate-cta {
     width: 100%;
-    max-width: 440px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3136,28 +3179,56 @@ body {
     letter-spacing: 0.04em;
     cursor: pointer;
     box-shadow: 0 6px 24px rgba(232, 184, 75, 0.35);
-    margin-bottom: 16px;
+    transition: background 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 
 .geo-gate--figma .geo-gate-cta--loading,
 .geo-gate--figma .geo-gate-cta:disabled {
-    opacity: 0.85;
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    box-shadow: none;
     cursor: wait;
 }
 
 .geo-gate--figma .geo-gate-hint {
+    margin: 14px 0 0;
     font-size: 0.6875rem;
     color: #4a4845;
-    margin-bottom: 20px;
+    text-align: center;
+    line-height: 1.55;
 }
 
-.geo-gate--figma .geo-gate-legal {
-    margin-top: auto;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    width: 100%;
-    max-width: 440px;
+.geo-gate--figma .geo-gate-footer {
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
     justify-content: center;
+    gap: 24px;
+    padding: 16px 28px calc(32px + var(--safe-bottom));
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    background: linear-gradient(180deg, transparent 0%, rgba(10, 8, 7, 0.85) 30%);
+}
+
+.geo-gate--figma .geo-gate-footer-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #5a5855;
+    font-family: var(--font-display);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+.geo-gate--figma .geo-gate-footer-link:hover {
+    color: var(--gold);
 }
 
 /* Station list (ListScreen) */

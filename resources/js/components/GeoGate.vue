@@ -4,14 +4,11 @@ import AppIcon from './AppIcon.vue';
 import UiIcon from './UiIcon.vue';
 import { useGeolocation } from '../composables/useGeolocation';
 import { isInBbox } from '../composables/useAppSettings';
-import LegalLinks from './LegalLinks.vue';
-import { geoGateCookieDays } from '../composables/useGeoGate';
 
 const emit = defineEmits(['granted', 'open-legal']);
 
 const { locate, loading, error } = useGeolocation();
 const status = ref('idle');
-const showDetails = ref(false);
 
 async function requestAccess() {
     status.value = 'idle';
@@ -51,80 +48,78 @@ async function requestAccess() {
             <circle cx="330" cy="290" r="10" fill="#EF4444" opacity="0.25" />
         </svg>
 
-        <div class="geo-gate-content">
-            <div class="geo-gate-logo-wrap">
-                <div class="geo-gate-logo">
-                    <AppIcon :size="88" />
-                </div>
-            </div>
-
-            <h1 class="geo-gate-title">Топливо</h1>
-            <p class="geo-gate-subtitle">Севастополь · sevazs.ru</p>
-
-            <div class="geo-gate-card">
-                <div class="geo-gate-card-head">
-                    <div class="geo-gate-card-icon" aria-hidden="true">
-                        <UiIcon name="map-pin" :size="18" color="#E8B84B" />
+        <div class="geo-gate-scroll">
+            <div class="geo-gate-main">
+                <div class="geo-gate-brand">
+                    <div class="geo-gate-logo">
+                        <AppIcon :size="88" />
                     </div>
-                    <div>
-                        <div class="geo-gate-card-title">Нужен доступ к геолокации</div>
-                        <p class="geo-gate-card-text">
-                            Приложение показывает только АЗС Севастополя. Геолокация помогает найти ближайшие станции и сортировать их по расстоянию.
-                        </p>
+                    <h1 class="geo-gate-title">Топливо</h1>
+                    <p class="geo-gate-subtitle">Севастополь · sevazs.ru</p>
+                </div>
+
+                <div class="geo-gate-card">
+                    <div class="geo-gate-card-head">
+                        <div class="geo-gate-card-icon" aria-hidden="true">
+                            <UiIcon name="map-pin" :size="18" color="#E8B84B" />
+                        </div>
+                        <div class="geo-gate-card-copy">
+                            <p class="geo-gate-card-title">Нужен доступ к геолокации</p>
+                            <p class="geo-gate-card-text">
+                                Показываем только АЗС Севастополя и сортируем их по расстоянию от вас.
+                            </p>
+                        </div>
                     </div>
+                    <ul class="geo-gate-trust-list">
+                        <li>
+                            <UiIcon name="shield" :size="14" color="#22C55E" />
+                            <span>Не передаём данные третьим лицам</span>
+                        </li>
+                        <li>
+                            <UiIcon name="anchor" :size="14" color="#E8B84B" />
+                            <span>Только для пользователей Севастополя</span>
+                        </li>
+                    </ul>
                 </div>
-                <div class="geo-gate-card-row">
-                    <UiIcon name="shield" :size="14" color="#22C55E" />
-                    Не передаём данные третьим лицам
+
+                <div v-if="status === 'outside'" class="geo-gate-alert geo-gate-alert--error">
+                    Похоже, вы вне Севастополя. Сервис работает только в регионе.
                 </div>
-                <div class="geo-gate-card-row">
-                    <UiIcon name="anchor" :size="14" color="#E8B84B" />
-                    Только для пользователей Севастополя
+                <div v-else-if="status === 'denied' && error" class="geo-gate-alert geo-gate-alert--error">
+                    <p>{{ error }}</p>
+                    <p class="geo-gate-alert-hint">
+                        Chrome: замок слева от адреса → «Местоположение» → «Разрешить», затем обновите страницу.
+                    </p>
                 </div>
+                <div v-else-if="status === 'insecure'" class="geo-gate-alert geo-gate-alert--error">
+                    Геолокация работает только по HTTPS. Откройте сайт по защищённому адресу.
+                </div>
+
+                <button
+                    v-if="status !== 'insecure'"
+                    type="button"
+                    class="geo-gate-cta"
+                    :class="{ 'geo-gate-cta--loading': loading }"
+                    :disabled="loading"
+                    @click="requestAccess"
+                >
+                    <UiIcon name="map-pin" :size="16" :color="loading ? '#22C55E' : '#0A0807'" />
+                    {{ loading ? 'Определяем местоположение…' : 'Разрешить геолокацию' }}
+                </button>
+
+                <p class="geo-gate-hint">Можно изменить в любой момент в настройках браузера</p>
             </div>
-
-            <p v-if="status === 'outside'" class="geo-gate-error">
-                Похоже, вы вне Севастополя. Сервис предназначен для региона — за пределами он недоступен.
-            </p>
-            <p v-else-if="status === 'denied' && error" class="geo-gate-error">
-                {{ error }}
-                <span class="geo-gate-error-hint">
-                    В Chrome: замок слева от адреса → «Местоположение» → «Разрешить», затем обновите страницу.
-                </span>
-            </p>
-            <p v-else-if="status === 'insecure'" class="geo-gate-error">
-                Геолокация работает только по HTTPS. Откройте сайт по защищённому адресу, а не по IP в локальной сети.
-            </p>
-
-            <button
-                v-if="status !== 'insecure'"
-                type="button"
-                class="geo-gate-cta"
-                :class="{ 'geo-gate-cta--loading': loading }"
-                :disabled="loading"
-                @click="requestAccess"
-            >
-                <UiIcon name="map-pin" :size="16" :color="loading ? '#22C55E' : '#0A0807'" />
-                {{ loading ? 'Определяем местоположение…' : 'Разрешить геолокацию' }}
-            </button>
-
-            <p class="geo-gate-hint">Можно изменить в любой момент в настройках браузера</p>
-
-            <button
-                type="button"
-                class="geo-gate-details-toggle"
-                :aria-expanded="showDetails"
-                @click="showDetails = !showDetails"
-            >
-                {{ showDetails ? 'Скрыть подробности' : 'Подробнее о приватности' }}
-            </button>
-
-            <div v-if="showDetails" class="geo-gate-details">
-                <p><strong>Когда снова спросим?</strong> Экран входа не показываем {{ geoGateCookieDays }} дней после успешной проверки (cookie в браузере).</p>
-                <p><strong>Что видят другие?</strong> Статус топлива на АЗС без привязки к личности.</p>
-            </div>
-
-            <LegalLinks class="geo-gate-legal" @open="emit('open-legal', $event)" />
         </div>
+
+        <footer class="geo-gate-footer">
+            <button type="button" class="geo-gate-footer-link" @click="emit('open-legal', 'privacy')">
+                <UiIcon name="shield" :size="11" color="currentColor" />
+                Конфиденциальность
+            </button>
+            <button type="button" class="geo-gate-footer-link" @click="emit('open-legal', 'terms')">
+                <UiIcon name="file-text" :size="11" color="currentColor" />
+                Соглашение
+            </button>
+        </footer>
     </div>
 </template>
