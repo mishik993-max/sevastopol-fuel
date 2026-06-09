@@ -2002,7 +2002,6 @@ body {
     position: fixed;
     left: 16px;
     right: 16px;
-    bottom: calc(16px + var(--safe-bottom));
     max-width: 400px;
     margin: 0 auto;
     padding: 18px 16px;
@@ -2011,6 +2010,16 @@ body {
     border-radius: 16px;
     z-index: 3002;
     box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+}
+
+.tour-card--bottom {
+    bottom: calc(16px + var(--safe-bottom));
+    top: auto;
+}
+
+.tour-card--top {
+    top: calc(16px + var(--safe-top));
+    bottom: auto;
 }
 
 .tour-card--figma .tour-step-num {

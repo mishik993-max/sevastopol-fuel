@@ -171,6 +171,16 @@ function finishOnboarding() {
     showOnboarding.value = false;
 }
 
+function onTourPrepareStep(step) {
+    if (step.expandFilters) {
+        filtersOpen.value = true;
+    }
+
+    if (step.viewMode) {
+        viewMode.value = step.viewMode;
+    }
+}
+
 function startTour() {
     showHelp.value = false;
     showOnboarding.value = true;
@@ -623,7 +633,6 @@ async function onStationClosed() {
                 class="map-fab-bar"
                 :class="{ 'map-fab-bar--sheet': !!selectedStation && !showReport && !showConfirm && !showEditStation }"
                 :style="sheetHeightPx > 0 ? { bottom: `${sheetHeightPx + 16}px` } : undefined"
-                data-tour="nearby"
             >
                 <button
                     type="button"
@@ -639,6 +648,7 @@ async function onStationClosed() {
                     <button
                         type="button"
                         class="map-fab-nearby"
+                        data-tour="nearby"
                         :disabled="geoLoading"
                         @click="nearby"
                     >
@@ -736,6 +746,7 @@ async function onStationClosed() {
 
         <OnboardingTour
             v-if="showOnboarding"
+            @prepare-step="onTourPrepareStep"
             @finish="finishOnboarding"
             @open-guide="showHelp = true"
         />

@@ -1,23 +1,58 @@
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { ONBOARDING_STEPS } from '../data/guide';
 
-const emit = defineEmits(['finish', 'open-guide']);
+const emit = defineEmits(['finish', 'open-guide', 'prepare-step']);
 
 const stepIndex = ref(0);
 const rect = ref(null);
+const cardPlacement = ref('bottom');
 
 const step = computed(() => ONBOARDING_STEPS[stepIndex.value]);
 const isLast = computed(() => stepIndex.value >= ONBOARDING_STEPS.length - 1);
 
-async function updateRect() {
+const CARD_ESTIMATE_PX = 220;
+
+function resolveCardPlacement(box, stepConfig) {
+    if (stepConfig?.cardPlacement === 'top' || stepConfig?.cardPlacement === 'bottom') {
+        return stepConfig.cardPlacement;
+    }
+
+    const vh = window.innerHeight;
+    const spaceBelow = vh - box.bottom;
+    const spaceAbove = box.top;
+
+    if (spaceBelow < CARD_ESTIMATE_PX + 32 && spaceAbove > spaceBelow) {
+        return 'top';
+    }
+
+    if (box.top + box.height / 2 > vh * 0.52) {
+        return 'top';
+    }
+
+    return 'bottom';
+}
+
+async function applyStep() {
+    const current = step.value;
+
+    if (!current) {
+        return;
+    }
+
+    emit('prepare-step', current);
     await nextTick();
-    const el = document.querySelector(step.value?.target);
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    const el = document.querySelector(current.target);
 
     if (!el) {
         rect.value = null;
         return;
     }
+
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    await new Promise((resolve) => setTimeout(resolve, 280));
 
     const box = el.getBoundingClientRect();
     rect.value = {
@@ -26,6 +61,7 @@ async function updateRect() {
         width: box.width,
         height: box.height,
     };
+    cardPlacement.value = resolveCardPlacement(box, current);
 }
 
 function next() {
@@ -36,7 +72,6 @@ function next() {
     }
 
     stepIndex.value += 1;
-    updateRect();
 }
 
 function skip() {
@@ -50,8 +85,20 @@ function openGuide() {
     emit('finish');
 }
 
-onMounted(updateRect);
-window.addEventListener('resize', updateRect);
+function onResize() {
+    applyStep();
+}
+
+watch(stepIndex, applyStep);
+
+onMounted(() => {
+    applyStep();
+    window.addEventListener('resize', onResize);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('resize', onResize);
+});
 </script>
 
 <template>
@@ -67,7 +114,10 @@ window.addEventListener('resize', updateRect);
             }"
         />
 
-        <div class="tour-card tour-card--figma">
+        <div
+            class="tour-card tour-card--figma"
+            :class="cardPlacement === 'top' ? 'tour-card--top' : 'tour-card--bottom'"
+        >
             <p class="tour-step-num">{{ stepIndex + 1 }} / {{ ONBOARDING_STEPS.length }}</p>
             <h3 class="tour-title">{{ step.title }}</h3>
             <p class="tour-text">{{ step.text }}</p>
