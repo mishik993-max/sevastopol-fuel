@@ -231,7 +231,7 @@ function onToggleFavorite() {
                     Уведомим, когда на этой АЗС появится {{ fuelLabel(selectedFuel) }}
                 </p>
                 <p v-else-if="favorite" class="station-favorite-hint">
-                    ★ В «Мои АЗС». Включите уведомления — push, когда появится {{ fuelLabel(selectedFuel) }}
+                    ★ В «Мои АЗС». Включите уведомления - push, когда появится {{ fuelLabel(selectedFuel) }}
                 </p>
             </header>
 

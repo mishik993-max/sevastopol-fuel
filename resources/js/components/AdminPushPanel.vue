@@ -178,7 +178,7 @@ onMounted(async () => {
             <div>
                 <h2>Срочный push</h2>
                 <p class="admin-settings-desc">
-                    Разовая рассылка всем, кто включил уведомления на сайте — для срочных новостей
+                    Разовая рассылка всем, кто включил уведомления на сайте - для срочных новостей
                     (время QR, перенос, изменение расписания).
                     <template v-if="pushSubscriptions !== null">
                         Подписок: <strong>{{ pushSubscriptions }}</strong>.

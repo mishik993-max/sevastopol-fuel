@@ -47,7 +47,7 @@ class SendQrReminderTick extends Command
             );
 
             if ($delivered === 0) {
-                $this->warn("{$reminder['time']}: доставлено 0 из {$total} — проверьте VAPID в .env и storage/logs/laravel.log");
+                $this->warn("{$reminder['time']}: доставлено 0 из {$total} - проверьте VAPID в .env и storage/logs/laravel.log");
 
                 continue;
             }

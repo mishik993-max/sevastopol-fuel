@@ -210,7 +210,7 @@ onMounted(load);
                         </td>
                         <td class="admin-reports-details" data-label="Детали">
                             <span v-if="metaLine(item)">{{ metaLine(item) }}</span>
-                            <span v-else class="admin-reports-muted">—</span>
+                            <span v-else class="admin-reports-muted">-</span>
                             <p v-if="item.comment" class="admin-reports-comment">{{ item.comment }}</p>
                         </td>
                         <td data-label="Фото">
@@ -228,7 +228,7 @@ onMounted(load);
                                     loading="lazy"
                                 />
                             </a>
-                            <span v-else class="admin-reports-muted">—</span>
+                            <span v-else class="admin-reports-muted">-</span>
                         </td>
                         <td class="admin-reports-actions-cell">
                             <div class="admin-reports-actions">

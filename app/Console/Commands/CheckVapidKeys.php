@@ -52,7 +52,7 @@ class CheckVapidKeys extends Command
         $this->line("Watches (избранные АЗС): {$watches}");
 
         if ($watches === 0 && $total > 0) {
-            $this->warn('Watches пусто — см. php artisan fuel-push:check');
+            $this->warn('Watches пусто - см. php artisan fuel-push:check');
         }
 
         return $broken > 0 ? self::FAILURE : self::SUCCESS;

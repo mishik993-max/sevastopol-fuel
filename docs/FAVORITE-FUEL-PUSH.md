@@ -26,7 +26,7 @@
 |-----------|--------|
 | Избранное | `localStorage` (`favorite_station_ids`), max 7, только клиент |
 | Push‑подписка | `push_subscriptions`: endpoint + ключи, **без привязки к избранному** |
-| Отправка | `WebPushService::broadcast()` — всем подписчикам (QR‑напоминания, админка) |
+| Отправка | `WebPushService::broadcast()` - всем подписчикам (QR‑напоминания, админка) |
 | Триггер статуса | Новый `Report` в `ReportController::store` / `confirm` |
 | Статус «Есть» | `FuelStatus::Available` + `Freshness::Fresh` → `marker_color = green` |
 
@@ -51,9 +51,9 @@
 ### Принципы
 
 1. **Watch привязан к push‑endpoint**, не к аккаунту (у приложения нет логина).
-2. **Синхронизация избранного** — при каждом изменении ★ и при старте приложения (если есть push‑подписка).
+2. **Синхронизация избранного** - при каждом изменении ★ и при старте приложения (если есть push‑подписка).
 3. **Точечная отправка**, не broadcast.
-4. **Антиспам** — cooldown и фильтр «не своим отчётом» (опционально на v1).
+4. **Антиспам** - cooldown и фильтр «не своим отчётом» (опционально на v1).
 
 ---
 
@@ -68,7 +68,7 @@
 стало: marker_color == 'green' для данного fuel_type на station_id
 ```
 
-Учитывать ту же логику, что в `StationStatusService::markerColor()` — не дублировать вручную, вызывать `fuelStatus()` до и после.
+Учитывать ту же логику, что в `StationStatusService::markerColor()` - не дублировать вручную, вызывать `fuelStatus()` до и после.
 
 ### Не слать
 
@@ -85,11 +85,11 @@
 
 - **1 push на пару** `(push_subscription_id, station_id, fuel_type)` **раз в 30–60 минут**.
 - Таблица `push_notification_log` или поле `last_notified_at` в watches.
-- При повторном «пропало → появилось» в тот же час — не дублировать.
+- При повторном «пропало → появилось» в тот же час - не дублировать.
 
 ### Какие топливо отслеживать
 
-**v1 (простой вариант):** только топливо из фильтра приложения (`selectedFuel`, по умолчанию A95) — передаётся в watch.
+**v1 (простой вариант):** только топливо из фильтра приложения (`selectedFuel`, по умолчанию A95) - передаётся в watch.
 
 **v2:** watch на все `FuelType::all()` для каждой избранной АЗС (до 7 × 4 = 28 watches на устройство).
 
@@ -147,7 +147,7 @@ CREATE INDEX idx_watches_station_fuel ON push_subscription_watches (station_id, 
 
 **Поведение:**
 
-1. Найти `PushSubscription` по `endpoint` (404 если нет — клиент сначала subscribe).
+1. Найти `PushSubscription` по `endpoint` (404 если нет - клиент сначала subscribe).
 2. Upsert `client_id` на подписке.
 3. Заменить watches: удалить лишние, добавить новые (max 7 station_ids).
 4. Для каждого watch проставить `last_marker_color` из текущего `fuelStatus()`.
@@ -170,7 +170,7 @@ Throttle: `30/min` на endpoint.
 
 ### `WebPushService::sendTo(array $subscriptionIds, string $title, string $body, ?string $url): int`
 
-Выделить из `broadcast()` — отправка списку подписок, общий flush и очистка expired.
+Выделить из `broadcast()` - отправка списку подписок, общий flush и очистка expired.
 
 ### `FavoriteFuelPushService`
 
@@ -190,7 +190,7 @@ public function handleReport(Report $report, Station $station): void
 
 **Точка вызова:** `ReportController::store` после create (не в `confirm`).
 
-Альтернатива чище: **Laravel Observer** `Report::created` — один вход для store и будущих импортов.
+Альтернатива чище: **Laravel Observer** `Report::created` - один вход для store и будущих импортов.
 
 **Текст body:**
 
@@ -209,7 +209,7 @@ sprintf('На %s «%s» появился %s', $station->network, $station->name,
 ### 1. Стабильный `client_id`
 
 ```js
-// localStorage push_client_id — UUID, генерируется один раз
+// localStorage push_client_id - UUID, генерируется один раз
 ```
 
 Передавать в `/api/push/subscribe` и `/api/push/watches`.
@@ -218,12 +218,12 @@ sprintf('На %s «%s» появился %s', $station->network, $station->name,
 
 Новый composable `useFavoritePushWatches.js`:
 
-- `syncWatches(favoriteIds, selectedFuel)` — debounce 500 ms
+- `syncWatches(favoriteIds, selectedFuel)` - debounce 500 ms
 - Вызывать при: toggle ★, изменении `selectedFuel`, успешном push subscribe, `onMounted` если `push_subscribed`
 
 ### 3. UX: отдельный переключатель (рекомендуется)
 
-QR‑push и «мои АЗС» — разные сценарии. В настройках или рядом с фильтром «Мои АЗС»:
+QR‑push и «мои АЗС» - разные сценарии. В настройках или рядом с фильтром «Мои АЗС»:
 
 > 🔔 Уведомлять, когда на моих АЗС появится топливо
 
@@ -244,7 +244,7 @@ const fuel = params.get('fuel');
 
 ### 5. Service Worker
 
-Заменить фиксированный `tag: 'sevazs-qr'` на `sevazs-fuel-{stationId}` — чтобы несколько алертов не затирали друг друга.
+Заменить фиксированный `tag: 'sevazs-qr'` на `sevazs-fuel-{stationId}` - чтобы несколько алертов не затирали друг друга.
 
 ---
 
@@ -266,14 +266,14 @@ const fuel = params.get('fuel');
 - [ ] Миграции `client_id`, `push_subscription_watches`, опционально log
 - [ ] `WebPushService::sendTo()`
 - [ ] `FavoriteFuelPushService` + вызов из Observer/Controller
-- [ ] `PushWatchController` — sync / clear
+- [ ] `PushWatchController` - sync / clear
 - [ ] Cooldown + обновление `last_marker_color`
 - [ ] Feature tests: transition green, no push on confirm, cooldown
 
 ### Frontend
 
 - [ ] `client_id` + sync watches composable
-- [ ] Toggle «уведомления по избранным» — **не делаем**: push автоматически при ★ + активной подписке
+- [ ] Toggle «уведомления по избранным» - **не делаем**: push автоматически при ★ + активной подписке
 - [ ] Deep link `?station=&fuel=`
 - [ ] SW: разные notification tags
 
@@ -285,7 +285,7 @@ php artisan migrate --force
 php artisan route:cache && php artisan config:cache
 ```
 
-Cron не нужен — event‑driven при новом отчёте.
+Cron не нужен - event‑driven при новом отчёте.
 
 ---
 

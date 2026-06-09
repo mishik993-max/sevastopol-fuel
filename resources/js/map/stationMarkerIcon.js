@@ -8,7 +8,7 @@ const FIGMA_STATUS = {
     black: '#6B7280',
 };
 
-/** Золото избранного — ярче базового --gold для контраста на карте */
+/** Золото избранного - ярче базового --gold для контраста на карте */
 const FAVORITE_GOLD = '#FFD54F';
 const FAVORITE_GOLD_SOFT = '#E8B84B';
 

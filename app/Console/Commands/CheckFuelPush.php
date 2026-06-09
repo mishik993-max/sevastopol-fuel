@@ -39,7 +39,7 @@ class CheckFuelPush extends Command
         $this->line("Watches (избранные): {$watches}");
 
         if ($watches === 0 && $subs > 0) {
-            $this->warn('Watches пусто — клиент не синхронизировал ★ после деплоя.');
+            $this->warn('Watches пусто - клиент не синхронизировал ★ после деплоя.');
             $this->line('  → обновите сайт (Ctrl+Shift+R), снимите и снова поставьте ★ на АЗС');
         }
 
@@ -59,7 +59,7 @@ class CheckFuelPush extends Command
                     $watch->id,
                     $label,
                     $watch->fuel_type->value,
-                    $watch->last_marker_color ?? '—',
+                    $watch->last_marker_color ?? '-',
                     $watch->last_notified_at?->timezone(config('app.timezone'))->format('Y-m-d H:i') ?? 'никогда',
                 ));
             });
@@ -124,7 +124,7 @@ class CheckFuelPush extends Command
             } elseif ($watchCount > 0 && $fuelStatus['marker_color'] === 'green') {
                 $this->warn('  → Сейчас уже green: push только после «Нет» и снова «Есть».');
             } else {
-                $this->warn('  → Нет watch на эту АЗС/топливо — ★ не синхронизирован.');
+                $this->warn('  → Нет watch на эту АЗС/топливо - ★ не синхронизирован.');
             }
 
             $this->line('  Push уйдёт только при переходе marker → green (не confirm).');

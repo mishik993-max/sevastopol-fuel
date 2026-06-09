@@ -52,7 +52,7 @@ function dismiss() {
         </span>
         <div class="push-text">
             <span class="push-text-main">Уведомления: QR и «Мои АЗС»</span>
-            <span class="push-text-sub">{{ qrReminderLabel }}. ★ на заправке — push, когда появится топливо.</span>
+            <span class="push-text-sub">{{ qrReminderLabel }}. ★ на заправке - push, когда появится топливо.</span>
             <span v-if="error" class="push-error">{{ error }}</span>
             <span v-else-if="!swReady && !loading" class="push-hint">Загрузка Service Worker…</span>
             <span v-else-if="blocked" class="push-hint">Уведомления заблокированы в браузере</span>

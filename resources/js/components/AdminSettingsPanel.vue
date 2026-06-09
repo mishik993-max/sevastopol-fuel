@@ -199,7 +199,7 @@ onMounted(load);
             <div v-show="settingsTab === 'qr_schedule'" class="admin-settings-pane">
                 <p class="admin-settings-desc">
                     Автоматические напоминания по расписанию (cron каждую минуту).
-                    Срочные разовые сообщения — в разделе «Срочный push» в меню слева.
+                    Срочные разовые сообщения - в разделе «Срочный push» в меню слева.
                 </p>
                 <div class="admin-reminder-list">
                 <div v-for="(reminder, i) in form.qr_reminders" :key="i" class="admin-reminder-card">
