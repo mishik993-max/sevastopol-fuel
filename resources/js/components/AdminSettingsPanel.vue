@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref } from 'vue';
 import { apiUrl } from '../api';
 
 const props = defineProps({
@@ -13,17 +13,13 @@ const SETTINGS_TABS = [
     { id: 'freshness', label: 'Свежесть' },
     { id: 'moderation', label: 'Модерация' },
     { id: 'networks', label: 'Сети' },
-    { id: 'push', label: 'Push' },
+    { id: 'qr_schedule', label: 'Расписание QR' },
 ];
 
 const settingsTab = ref('region');
 const form = ref(null);
 const saving = ref(false);
 const loading = ref(false);
-const pushSubscriptions = ref(null);
-const pushSending = ref(false);
-const pushSendNotice = ref(null);
-const manualPush = ref({ title: '', body: '', url: '' });
 
 const emptyForm = () => ({
     geo_bbox: { south: 44.48, west: 33.38, north: 44.72, east: 33.72 },
@@ -79,49 +75,6 @@ function removeReminder(index) {
     form.value.qr_reminders.splice(index, 1);
 }
 
-async function loadPushStatus() {
-    try {
-        const res = await fetch(apiUrl('/api/admin/push/status'), { headers: props.authHeaders() });
-        const json = await res.json();
-
-        if (!res.ok) throw new Error(json.message || 'Ошибка загрузки push');
-
-        pushSubscriptions.value = json.data.subscriptions;
-    } catch (e) {
-        pushSubscriptions.value = null;
-        emit('error', e.message);
-    }
-}
-
-async function sendManualPush() {
-    if (!window.confirm('Отправить push всем подписчикам?')) {
-        return;
-    }
-
-    pushSending.value = true;
-    pushSendNotice.value = null;
-    emit('error', null);
-
-    try {
-        const res = await fetch(apiUrl('/api/admin/push/send'), {
-            method: 'POST',
-            headers: props.authHeaders(),
-            body: JSON.stringify(manualPush.value),
-        });
-        const json = await res.json();
-
-        if (!res.ok) throw new Error(json.message || 'Ошибка отправки');
-
-        pushSendNotice.value = json.message;
-        emit('saved', json.message);
-        await loadPushStatus();
-    } catch (e) {
-        emit('error', e.message);
-    } finally {
-        pushSending.value = false;
-    }
-}
-
 async function save() {
     saving.value = true;
     emit('error', null);
@@ -161,12 +114,6 @@ async function save() {
 }
 
 onMounted(load);
-
-watch(settingsTab, (tab) => {
-    if (tab === 'push') {
-        loadPushStatus();
-    }
-});
 </script>
 
 <template>
@@ -249,46 +196,11 @@ watch(settingsTab, (tab) => {
                 </label>
             </div>
 
-            <div v-show="settingsTab === 'push'" class="admin-settings-pane">
-                <section class="admin-push-send">
-                    <h3 class="admin-push-send-title">Отправить сейчас</h3>
-                    <p class="admin-settings-desc">
-                        Ручная рассылка всем подписчикам.
-                        <template v-if="pushSubscriptions !== null">
-                            Подписок: <strong>{{ pushSubscriptions }}</strong>.
-                        </template>
-                    </p>
-                    <div class="admin-push-send-form">
-                        <label class="field">Заголовок
-                            <input v-model="manualPush.title" class="field-input" type="text" maxlength="120" />
-                        </label>
-                        <label class="field">Текст
-                            <input v-model="manualPush.body" class="field-input" type="text" maxlength="300" />
-                        </label>
-                        <label class="field">Ссылка при клике (https)
-                            <input
-                                v-model="manualPush.url"
-                                class="field-input"
-                                type="url"
-                                inputmode="url"
-                                placeholder="https://t.me/your_bot"
-                                maxlength="500"
-                            />
-                        </label>
-                        <button
-                            type="button"
-                            class="btn btn-primary"
-                            :disabled="pushSending || !manualPush.title.trim() || !manualPush.body.trim() || pushSubscriptions === 0"
-                            @click="sendManualPush"
-                        >
-                            {{ pushSending ? 'Отправка…' : 'Отправить push' }}
-                        </button>
-                        <p v-if="pushSendNotice" class="admin-notice">{{ pushSendNotice }}</p>
-                    </div>
-                </section>
-
-                <h3 class="admin-push-send-title">Расписание QR</h3>
-                <p class="admin-settings-desc">Автоматические напоминания по расписанию. По клику откроется указанный URL.</p>
+            <div v-show="settingsTab === 'qr_schedule'" class="admin-settings-pane">
+                <p class="admin-settings-desc">
+                    Автоматические напоминания по расписанию (cron каждую минуту).
+                    Срочные разовые сообщения — в разделе «Срочный push» в меню слева.
+                </p>
                 <div class="admin-reminder-list">
                 <div v-for="(reminder, i) in form.qr_reminders" :key="i" class="admin-reminder-card">
                     <div class="admin-reminder-card-head">

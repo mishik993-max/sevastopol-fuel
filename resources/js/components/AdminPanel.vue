@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import AdminSettingsPanel from './AdminSettingsPanel.vue';
 import AdminOsmImportPanel from './AdminOsmImportPanel.vue';
+import AdminPushPanel from './AdminPushPanel.vue';
 import { apiUrl } from '../api';
 
 const STORAGE_KEY = 'admin_token';
@@ -284,6 +285,14 @@ onMounted(() => {
                 <button
                     type="button"
                     class="admin-nav-item"
+                    :class="{ 'admin-nav-item--active': tab === 'push' }"
+                    @click="tab = 'push'"
+                >
+                    Срочный push
+                </button>
+                <button
+                    type="button"
+                    class="admin-nav-item"
                     :class="{ 'admin-nav-item--active': tab === 'settings' }"
                     @click="tab = 'settings'"
                 >
@@ -479,6 +488,13 @@ onMounted(() => {
                     :auth-headers="authHeaders"
                     @error="error = $event"
                     @done="(msg) => { saveNotice = msg; error = null; }"
+                />
+
+                <AdminPushPanel
+                    v-if="tab === 'push'"
+                    :auth-headers="authHeaders"
+                    @error="error = $event"
+                    @saved="(msg) => { saveNotice = msg; error = null; }"
                 />
 
                 <AdminSettingsPanel
