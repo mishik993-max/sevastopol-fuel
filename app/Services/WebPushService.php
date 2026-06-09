@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\PushSubscription;
+use App\Support\VapidKeys;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush;
 
@@ -11,6 +13,9 @@ class WebPushService
 {
     public function subscribe(string $endpoint, string $publicKey, string $authToken): PushSubscription
     {
+        VapidKeys::assertValidBase64Url($publicKey, 'keys.p256dh');
+        VapidKeys::assertValidBase64Url($authToken, 'keys.auth');
+
         return PushSubscription::query()->updateOrCreate(
             ['endpoint' => $endpoint],
             [
@@ -27,21 +32,16 @@ class WebPushService
 
     public function broadcast(string $title, string $body): int
     {
-        $publicKey = config('notifications.vapid.public_key');
-        $privateKey = config('notifications.vapid.private_key');
-
-        if (empty($publicKey) || empty($privateKey)) {
-            Log::warning('VAPID keys not configured, skipping push broadcast');
+        try {
+            $vapid = VapidKeys::config();
+        } catch (InvalidArgumentException $e) {
+            Log::warning('VAPID keys invalid, skipping push broadcast', ['reason' => $e->getMessage()]);
 
             return 0;
         }
 
         $webPush = new WebPush([
-            'VAPID' => [
-                'subject' => config('notifications.vapid.subject'),
-                'publicKey' => $publicKey,
-                'privateKey' => $privateKey,
-            ],
+            'VAPID' => $vapid,
         ]);
 
         $payload = json_encode([
@@ -52,13 +52,23 @@ class WebPushService
         $sent = 0;
 
         foreach (PushSubscription::query()->cursor() as $sub) {
-            $subscription = Subscription::create([
-                'endpoint' => $sub->endpoint,
-                'publicKey' => $sub->public_key,
-                'authToken' => $sub->auth_token,
-            ]);
+            try {
+                VapidKeys::assertSubscriptionKeys($sub->public_key, $sub->auth_token, $sub->id);
 
-            $webPush->queueNotification($subscription, $payload);
+                $subscription = Subscription::create([
+                    'endpoint' => $sub->endpoint,
+                    'publicKey' => $sub->public_key,
+                    'authToken' => $sub->auth_token,
+                ]);
+
+                $webPush->queueNotification($subscription, $payload);
+            } catch (InvalidArgumentException $e) {
+                Log::warning('Skipping invalid push subscription', [
+                    'id' => $sub->id,
+                    'reason' => $e->getMessage(),
+                ]);
+                PushSubscription::query()->whereKey($sub->id)->delete();
+            }
         }
 
         foreach ($webPush->flush() as $report) {

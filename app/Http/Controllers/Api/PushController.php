@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PushSubscribeRequest;
 use App\Services\WebPushService;
+use App\Support\VapidKeys;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -14,8 +15,10 @@ class PushController extends Controller
 
     public function vapidPublicKey(): JsonResponse
     {
+        $publicKey = VapidKeys::normalize(config('notifications.vapid.public_key'));
+
         return response()->json([
-            'public_key' => config('notifications.vapid.public_key'),
+            'public_key' => $publicKey,
         ]);
     }
 

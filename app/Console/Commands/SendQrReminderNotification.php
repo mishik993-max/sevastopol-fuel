@@ -55,7 +55,7 @@ class SendQrReminderNotification extends Command
         $sent = $webPush->broadcast($reminder['title'], $reminder['body']);
 
         if ($sent === 0) {
-            $this->warn("Доставлено 0 из {$total}. Смотрите storage/logs/laravel.log (Push failed).");
+            $this->warn("Доставлено 0 из {$total}. Выполните php artisan webpush:check и смотрите storage/logs/laravel.log.");
 
             return self::FAILURE;
         }

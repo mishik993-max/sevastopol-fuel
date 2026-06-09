@@ -19,7 +19,9 @@ class GenerateVapidKeys extends Command
         $this->line('');
         $this->line('VAPID_PUBLIC_KEY='.$keys['publicKey']);
         $this->line('VAPID_PRIVATE_KEY='.$keys['privateKey']);
-        $this->line('VAPID_SUBJECT=mailto:admin@example.com');
+        $this->line('VAPID_SUBJECT=mailto:admin@sevazs.ru');
+        $this->line('');
+        $this->comment('Без кавычек в конце строки. После правки .env: php artisan config:cache');
 
         return self::SUCCESS;
     }
