@@ -16,12 +16,12 @@ cat /etc/os-release | grep -E '^(VERSION_ID|VERSION_CODENAME)='
 
 ### Ubuntu 22.04 / 24.04
 
-На **22.04** пакетов `php8.3-`* в стандартных репозиториях нет — нужен PPA. На **24.04** PHP 8.3 часто уже есть без PPA; если `apt install php8.3-fpm` находит пакет, PPA можно не добавлять.
+На **22.04** пакетов `php8.3-`* в стандартных репозиториях нет - нужен PPA. На **24.04** PHP 8.3 часто уже есть без PPA; если `apt install php8.3-fpm` находит пакет, PPA можно не добавлять.
 
 ```bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y software-properties-common
-sudo add-apt-repository ppa:ondrej/php -y   # только 22.04/24.04; на 26.04 — ошибка 404
+sudo add-apt-repository ppa:ondrej/php -y   # только 22.04/24.04; на 26.04 - ошибка 404
 sudo apt update
 sudo apt install -y nginx mysql-server \
   php8.3-fpm php8.3-cli php8.3-mysql php8.3-mbstring php8.3-xml php8.3-curl \
@@ -33,7 +33,7 @@ php -v   # 8.3.x
 
 ### Ubuntu 26.04 (если VPS уже на ней)
 
-Удалите сломанный PPA (если добавляли) и ставьте PHP из стандартных репозиториев (обычно **8.4** или **8.5** — для проекта подходит):
+Удалите сломанный PPA (если добавляли) и ставьте PHP из стандартных репозиториев (обычно **8.4** или **8.5** - для проекта подходит):
 
 ```bash
 sudo add-apt-repository --remove ppa:ondrej/php -y 2>/dev/null || true
@@ -178,17 +178,17 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ## 8. SSL
 
-**С доменом** (после привязки DNS — см. [DOMAIN-AND-SSL.md](DOMAIN-AND-SSL.md)):
+**С доменом** (после привязки DNS - см. [DOMAIN-AND-SSL.md](DOMAIN-AND-SSL.md)):
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
 sudo certbot --nginx -d sevazs.ru
 ```
 
-**Без домена (только IP):** Let's Encrypt на IP (~6 дней) или самоподписанный сертификат — [DOMAIN-AND-SSL.md §2](DOMAIN-AND-SSL.md#2-запуск-без-домена-только-ip).  
-`certbot --nginx -d 1.2.3.4` **не сработает** — нужен другой способ.
+**Без домена (только IP):** Let's Encrypt на IP (~6 дней) или самоподписанный сертификат - [DOMAIN-AND-SSL.md §2](DOMAIN-AND-SSL.md#2-запуск-без-домена-только-ip).  
+`certbot --nginx -d 1.2.3.4` **не сработает** - нужен другой способ.
 
-## 9. Cron — обязателен для QR-напоминаний
+## 9. Cron - обязателен для QR-напоминаний
 
 Команда `notifications:qr-reminder-tick` запускается **каждую минуту** через `schedule:run` и сама решает, слать ли push в слоты 21:30–22:00 (Europe/Simferopol).
 
@@ -248,7 +248,7 @@ php artisan view:cache
 - Push-подписка запрашивает разрешение (HTTPS обязателен)
 - `php artisan schedule:list` показывает `notifications:qr-reminder-tick`
 - Cron настроен для `www-data`
-- `/admin` — модерация отчётов и импорт OSM работают
+- `/admin` - модерация отчётов и импорт OSM работают
 - Фото отчётов открываются (`storage:link`)
 
 ## Примечания

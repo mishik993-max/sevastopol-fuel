@@ -26,7 +26,7 @@ async function loadPreview() {
         const json = await res.json();
 
         if (res.status === 429) {
-            throw new Error('Слишком частые запросы — подождите до 30 минут и попробуйте снова');
+            throw new Error('Слишком частые запросы - подождите до 30 минут и попробуйте снова');
         }
 
         if (!res.ok) throw new Error(json.message || 'Ошибка превью');
@@ -65,7 +65,7 @@ async function applyImport(runSync) {
         const json = await res.json();
 
         if (res.status === 429) {
-            throw new Error('Слишком частые запросы — подождите до 30 минут');
+            throw new Error('Слишком частые запросы - подождите до 30 минут');
         }
 
         if (!res.ok) throw new Error(json.message || 'Ошибка импорта');
@@ -141,7 +141,7 @@ function fieldLabel(field) {
                 <h3>Новые АЗС ({{ preview.new.length }})</h3>
                 <ul class="admin-osm-list">
                     <li v-for="item in preview.new.slice(0, 30)" :key="item.external_id">
-                        <strong>{{ item.network }}</strong> — {{ item.name }}
+                        <strong>{{ item.network }}</strong> - {{ item.name }}
                         <span class="admin-item-meta">{{ item.address }}</span>
                         <span v-if="item.note" class="admin-osm-warn">{{ item.note }}</span>
                     </li>
@@ -152,7 +152,7 @@ function fieldLabel(field) {
             <div v-if="preview.updated.length" class="admin-osm-block">
                 <h3>Изменения ({{ preview.updated.length }})</h3>
                 <article v-for="item in preview.updated.slice(0, 20)" :key="item.id" class="admin-item admin-item--compact">
-                    <p class="admin-item-title">{{ item.network }} — {{ item.name }}</p>
+                    <p class="admin-item-title">{{ item.network }} - {{ item.name }}</p>
                     <p v-for="(ch, i) in item.changes" :key="i" class="admin-item-text">
                         {{ fieldLabel(ch.field) }}: «{{ ch.from }}» → «{{ ch.to }}»
                     </p>
@@ -163,7 +163,7 @@ function fieldLabel(field) {
                 <h3>Будут отключены ({{ preview.would_deactivate.length }})</h3>
                 <ul class="admin-osm-list">
                     <li v-for="item in preview.would_deactivate" :key="item.id">
-                        {{ item.network }} — {{ item.name }}
+                        {{ item.network }} - {{ item.name }}
                         <span class="admin-osm-warn">{{ item.reason }}</span>
                     </li>
                 </ul>
@@ -173,7 +173,7 @@ function fieldLabel(field) {
                 <h3>Снова появятся на карте ({{ preview.would_reactivate.length }})</h3>
                 <ul class="admin-osm-list">
                     <li v-for="item in preview.would_reactivate" :key="item.id">
-                        {{ item.network }} — {{ item.name }}
+                        {{ item.network }} - {{ item.name }}
                     </li>
                 </ul>
             </div>

@@ -23,7 +23,7 @@ async function generateWithSharp() {
 try {
     await generateWithSharp();
 } catch (error) {
-    console.warn('sharp not installed — run: npm install --save-dev sharp && npm run icons');
+    console.warn('sharp not installed - run: npm install --save-dev sharp && npm run icons');
     console.warn(error.message);
     process.exitCode = 0;
 }

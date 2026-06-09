@@ -97,7 +97,7 @@ function statusSub(fuel) {
     }
 
     if (fuel.freshness === 'unknown') {
-        return `По ${fuelLabel(fuel.fuel_type)} — сообщите, будьте первым`;
+        return `По ${fuelLabel(fuel.fuel_type)} - сообщите, будьте первым`;
     }
 
     return fuel.freshness_label;

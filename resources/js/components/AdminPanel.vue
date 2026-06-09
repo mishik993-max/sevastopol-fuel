@@ -416,7 +416,7 @@ onMounted(() => {
                     >
                         <div class="admin-item-head">
                             <span class="admin-item-title">
-                                {{ item.station_network }} — {{ item.station_name }}
+                                {{ item.station_network }} - {{ item.station_name }}
                             </span>
                             <span class="admin-item-date">{{ item.created_at }}</span>
                         </div>

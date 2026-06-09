@@ -20,7 +20,7 @@
 ssh root@ВАШ_IP
 ```
 
-Если используете пароль — смените его сразу после входа: `passwd`.
+Если используете пароль - смените его сразу после входа: `passwd`.
 
 ## 2. Базовая безопасность
 
@@ -53,7 +53,7 @@ ssh deploy@ВАШ_IP
 
 Проекту нужен **PHP 8.3+** (`composer.json`).
 
-> **Важно:** образ VPS должен быть **Ubuntu 22.04 или 24.04 LTS**. На **Ubuntu 26.04** (`resolute`) PPA `ondrej/php` не работает (404), пакетов `php8.3-*` нет — см. [DEPLOY.md §1](DEPLOY.md#1-подготовка-сервера) или пересоздайте VPS с Ubuntu 24.04.
+> **Важно:** образ VPS должен быть **Ubuntu 22.04 или 24.04 LTS**. На **Ubuntu 26.04** (`resolute`) PPA `ondrej/php` не работает (404), пакетов `php8.3-*` нет - см. [DEPLOY.md §1](DEPLOY.md#1-подготовка-сервера) или пересоздайте VPS с Ubuntu 24.04.
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -62,7 +62,7 @@ cat /etc/os-release | grep -E '^(VERSION_ID|VERSION_CODENAME)='
 
 ### Ubuntu 22.04 / 24.04
 
-На **22.04** без PPA пакетов `php8.3-*` нет. На **24.04** PHP 8.3 часто уже в стандартных репозиториях — сначала проверьте `apt-cache search php8.3-fpm`.
+На **22.04** без PPA пакетов `php8.3-*` нет. На **24.04** PHP 8.3 часто уже в стандартных репозиториях - сначала проверьте `apt-cache search php8.3-fpm`.
 
 ```bash
 sudo apt install -y software-properties-common
@@ -104,11 +104,11 @@ sudo mysql -e "FLUSH PRIVILEGES;"
 
 ## 5. Домен (привязка к VPS)
 
-> **Без домена?** Можно открыть сайт по IP, но для push нужен HTTPS — см. [DOMAIN-AND-SSL.md](DOMAIN-AND-SSL.md) (SSL на IP или самоподписанный).
+> **Без домена?** Можно открыть сайт по IP, но для push нужен HTTPS - см. [DOMAIN-AND-SSL.md](DOMAIN-AND-SSL.md) (SSL на IP или самоподписанный).
 
 ### 5.1. Купить домен
 
-Регистраторы зоны `.su`: nic.ru, reg.ru, webnames.ru. Идеи коротких имён — в [DOMAIN-AND-SSL.md §3](DOMAIN-AND-SSL.md#3-идеи-короткого-домена-su).
+Регистраторы зоны `.su`: nic.ru, reg.ru, webnames.ru. Идеи коротких имён - в [DOMAIN-AND-SSL.md §3](DOMAIN-AND-SSL.md#3-идеи-короткого-домена-su).
 
 ### 5.2. DNS у регистратора
 
@@ -186,7 +186,7 @@ php artisan route:cache
 php artisan view:cache
 ```
 
-Импорт АЗС — **через админку** (`/admin` → «Импорт OSM») или CLI:
+Импорт АЗС - **через админку** (`/admin` → «Импорт OSM») или CLI:
 
 ```bash
 php artisan stations:import-osm
@@ -249,10 +249,10 @@ sudo certbot --nginx -d sevazs.ru
 
 Certbot настроит HTTPS и автообновление (~90 дней).
 
-### Без домена — только IP
+### Без домена - только IP
 
 **Let's Encrypt на IP** возможен (Certbot 5.3+, сертификат ~6 дней, Nginx настраивается вручную).  
-**Самоподписанный** — для теста, браузер ругается, push на телефонах часто не работает.
+**Самоподписанный** - для теста, браузер ругается, push на телефонах часто не работает.
 
 Подробные команды и конфиг Nginx: [DOMAIN-AND-SSL.md §2](DOMAIN-AND-SSL.md#2-запуск-без-домена-только-ip).
 
@@ -278,12 +278,12 @@ php artisan schedule:list
 
 ## 13. Проверка после запуска
 
-- [ ] `https://fuel.example.com` — карта открывается
-- [ ] `https://fuel.example.com/api/stations` — JSON с АЗС
+- [ ] `https://fuel.example.com` - карта открывается
+- [ ] `https://fuel.example.com/api/stations` - JSON с АЗС
 - [ ] Отчёт «Сообщить» сохраняется, фото открывается по ссылке
-- [ ] `/admin` — вход по `ADMIN_PASSWORD`
+- [ ] `/admin` - вход по `ADMIN_PASSWORD`
 - [ ] Push работает (только HTTPS)
-- [ ] `php artisan schedule:list` — cron настроен
+- [ ] `php artisan schedule:list` - cron настроен
 
 ## 14. Обновление версии
 
@@ -302,7 +302,7 @@ php artisan view:cache
 
 | Симптом | Решение |
 |---------|---------|
-| `Unable to locate package php8.3-*` | VPS на Ubuntu 26.04 — PPA не поддерживается; см. [DEPLOY.md §1](DEPLOY.md#ubuntu-2604-если-vps-уже-на-ней) или пересоздайте VPS с **24.04 LTS** |
+| `Unable to locate package php8.3-*` | VPS на Ubuntu 26.04 - PPA не поддерживается; см. [DEPLOY.md §1](DEPLOY.md#ubuntu-2604-если-vps-уже-на-ней) или пересоздайте VPS с **24.04 LTS** |
 | 502 Bad Gateway | `sudo systemctl status php8.3-fpm nginx` (или `php8.4-fpm` на Ubuntu 26.04) |
 | Фото не открываются | `php artisan storage:link`, права на `storage/` |
 | Карта пустая | импорт OSM в админке или `stations:import-osm` |
@@ -311,9 +311,9 @@ php artisan view:cache
 
 ## 16. Нагрузочное тестирование
 
-См. [LOAD-TEST.md](LOAD-TEST.md) — сценарии k6 и оценка пропускной способности.
+См. [LOAD-TEST.md](LOAD-TEST.md) - сценарии k6 и оценка пропускной способности.
 
 ## Связанные документы
 
-- [DEPLOY.md](DEPLOY.md) — краткий чеклист деплоя
-- [LOCAL.md](LOCAL.md) — разработка на Laragon
+- [DEPLOY.md](DEPLOY.md) - краткий чеклист деплоя
+- [LOCAL.md](LOCAL.md) - разработка на Laragon

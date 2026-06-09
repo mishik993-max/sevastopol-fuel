@@ -95,7 +95,7 @@ async function shareApp() {
 
                 <div class="guide-legal-block">
                     <p class="guide-legal-lead">
-                        Без регистрации. GPS не уходит на сервер. На сервер — только ваши добровольные отчёты и обратная связь.
+                        Без регистрации. GPS не уходит на сервер. На сервер - только ваши добровольные отчёты и обратная связь.
                     </p>
                     <LegalLinks @open="emit('open-legal', $event)" />
                 </div>

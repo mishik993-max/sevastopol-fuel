@@ -60,7 +60,7 @@ async function submit() {
                     </div>
                     <h2 class="report-success__title">Спасибо!</h2>
                     <p class="report-success__text">
-                        Сообщение получено. Мы читаем все предложения — они помогают улучшать сервис.
+                        Сообщение получено. Мы читаем все предложения - они помогают улучшать сервис.
                     </p>
                     <button type="button" class="btn btn-secondary btn-block" @click="emit('close')">Закрыть</button>
                 </div>
@@ -111,7 +111,7 @@ async function submit() {
                             class="field-input"
                             type="text"
                             maxlength="120"
-                            placeholder="Telegram, email — если хотите ответ"
+                            placeholder="Telegram, email - если хотите ответ"
                         />
                     </label>
 

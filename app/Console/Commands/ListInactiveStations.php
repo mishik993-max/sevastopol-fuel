@@ -25,7 +25,7 @@ class ListInactiveStations extends Command
         }
 
         foreach ($stations as $station) {
-            $closed = $station->closed_at?->format('d.m.Y H:i') ?? '—';
+            $closed = $station->closed_at?->format('d.m.Y H:i') ?? '-';
             $this->line("[{$station->id}] {$station->network} {$station->name}");
             $this->line("    {$station->address}");
             $this->line("    закрыта: {$closed}- {$station->closed_reason}");

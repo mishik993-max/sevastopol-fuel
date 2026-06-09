@@ -180,7 +180,7 @@ class AdminController extends Controller
 
         if (! is_array($elements)) {
             return response()->json([
-                'message' => 'Превью устарело — сначала загрузите превью импорта снова',
+                'message' => 'Превью устарело - сначала загрузите превью импорта снова',
             ], 422);
         }
 

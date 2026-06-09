@@ -243,7 +243,7 @@ async function nearby() {
         await locate({ userRequested: true });
 
         if (!position.value || !isInBbox(position.value.lat, position.value.lng)) {
-            geoNotice.value = 'Вы вне Севастополя — показаны все АЗС';
+            geoNotice.value = 'Вы вне Севастополя - показаны все АЗС';
             mode.value = 'all';
             await fetchStations(selectedFuel.value);
             return;

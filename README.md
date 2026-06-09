@@ -50,4 +50,4 @@ npm install && npm run build
 | POST | `/api/admin/osm-import/run` |
 | GET/PATCH | `/api/admin/settings` |
 
-Админ-панель: `/admin`. Импорт АЗС из OSM — кнопка в админке (без автообновления по cron).
+Админ-панель: `/admin`. Импорт АЗС из OSM - кнопка в админке (без автообновления по cron).

@@ -776,7 +776,7 @@ body {
     overflow: hidden;
 }
 
-/*-—— Station bottom sheet (mobile app style)-—— */
+/*--- Station bottom sheet (mobile app style)--- */
 .station-sheet {
     display: flex;
     flex-direction: column;
@@ -1664,7 +1664,7 @@ body {
     min-height: 0;
 }
 
-/*-—— Список АЗС (карточки)-—— */
+/*--- Список АЗС (карточки)--- */
 .station-list-wrap {
     flex: 1;
     min-height: 0;

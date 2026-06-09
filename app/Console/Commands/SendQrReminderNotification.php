@@ -50,7 +50,7 @@ class SendQrReminderNotification extends Command
         }
 
         $this->line("Подписок: {$total}");
-        $this->line("«{$reminder['title']}» — {$reminder['body']}");
+        $this->line("«{$reminder['title']}» - {$reminder['body']}");
 
         $sent = $webPush->broadcast($reminder['title'], $reminder['body']);
 
