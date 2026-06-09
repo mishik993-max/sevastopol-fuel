@@ -30,7 +30,7 @@ class WebPushService
         PushSubscription::query()->where('endpoint', $endpoint)->delete();
     }
 
-    public function broadcast(string $title, string $body): int
+    public function broadcast(string $title, string $body, ?string $url = null): int
     {
         try {
             $vapid = VapidKeys::config();
@@ -44,10 +44,11 @@ class WebPushService
             'VAPID' => $vapid,
         ]);
 
-        $payload = json_encode([
+        $payload = json_encode(array_filter([
             'title' => $title,
             'body' => $body,
-        ], JSON_UNESCAPED_UNICODE);
+            'url' => self::normalizeNotificationUrl($url),
+        ], static fn ($value) => $value !== null && $value !== ''), JSON_UNESCAPED_UNICODE);
 
         $sent = 0;
 
@@ -90,5 +91,24 @@ class WebPushService
         }
 
         return $sent;
+    }
+
+    private static function normalizeNotificationUrl(?string $url): ?string
+    {
+        if ($url === null) {
+            return null;
+        }
+
+        $url = trim($url);
+
+        if ($url === '') {
+            return null;
+        }
+
+        if (! filter_var($url, FILTER_VALIDATE_URL) || ! str_starts_with(strtolower($url), 'https://')) {
+            return null;
+        }
+
+        return $url;
     }
 }

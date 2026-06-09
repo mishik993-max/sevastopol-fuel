@@ -51,8 +51,15 @@ class SendQrReminderNotification extends Command
 
         $this->line("Подписок: {$total}");
         $this->line("«{$reminder['title']}» - {$reminder['body']}");
+        if (! empty($reminder['url'])) {
+            $this->line('Ссылка: '.$reminder['url']);
+        }
 
-        $sent = $webPush->broadcast($reminder['title'], $reminder['body']);
+        $sent = $webPush->broadcast(
+            $reminder['title'],
+            $reminder['body'],
+            $reminder['url'] ?? null,
+        );
 
         if ($sent === 0) {
             $this->warn("Доставлено 0 из {$total}. Выполните php artisan webpush:check и смотрите storage/logs/laravel.log.");

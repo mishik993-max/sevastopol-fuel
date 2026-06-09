@@ -34,6 +34,7 @@ class UpdateAppSettingsRequest extends FormRequest
             'qr_reminders.*.time' => ['required', 'date_format:H:i'],
             'qr_reminders.*.title' => ['required', 'string', 'max:120'],
             'qr_reminders.*.body' => ['required', 'string', 'max:300'],
+            'qr_reminders.*.url' => ['nullable', 'string', 'max:500', 'regex:/^(|https:\/\/[^\s]+)$/i'],
         ];
     }
 }

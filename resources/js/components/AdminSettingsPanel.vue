@@ -52,7 +52,12 @@ async function load() {
             closure_reports_required: d.closure_reports_required,
             correction_confirmations_required: d.correction_confirmations_required,
             duplicate_radius_m: d.duplicate_radius_m,
-            qr_reminders: (d.qr_reminders || []).map((r) => ({ ...r })),
+            qr_reminders: (d.qr_reminders || []).map((r) => ({
+                time: r.time,
+                title: r.title,
+                body: r.body,
+                url: r.url || '',
+            })),
         };
     } catch (e) {
         emit('error', e.message);
@@ -63,7 +68,7 @@ async function load() {
 }
 
 function addReminder() {
-    form.value.qr_reminders.push({ time: '21:00', title: '', body: '' });
+    form.value.qr_reminders.push({ time: '21:00', title: '', body: '', url: '' });
 }
 
 function removeReminder(index) {
@@ -192,7 +197,7 @@ onMounted(load);
             </div>
 
             <div v-show="settingsTab === 'push'" class="admin-settings-pane">
-                <p class="admin-settings-desc">Время и текст push-напоминаний о QR (планировщик проверяет каждую минуту).</p>
+                <p class="admin-settings-desc">Время, текст и ссылка push-напоминаний о QR. По клику на уведомление откроется указанный URL (например, Telegram-бот).</p>
                 <div class="admin-reminder-list">
                 <div v-for="(reminder, i) in form.qr_reminders" :key="i" class="admin-reminder-card">
                     <div class="admin-reminder-card-head">
@@ -207,6 +212,16 @@ onMounted(load);
                     </label>
                     <label class="field">Текст уведомления
                         <input v-model="reminder.body" class="field-input" type="text" maxlength="300" />
+                    </label>
+                    <label class="field">Ссылка при клике (https)
+                        <input
+                            v-model="reminder.url"
+                            class="field-input"
+                            type="url"
+                            inputmode="url"
+                            placeholder="https://t.me/your_bot"
+                            maxlength="500"
+                        />
                     </label>
                 </div>
                 </div>
