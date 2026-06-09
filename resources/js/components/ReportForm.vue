@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { FUEL_TYPES, FUEL_STATUSES, QUEUE_SIZES, SALE_TYPES, FILL_VOLUMES, PHOTO_MAX_BYTES, PHOTO_ACCEPT_TYPES } from '../constants';
-import { apiUrl } from '../api';
+import { apiUrl, apiErrorMessage, parseApiResponse } from '../api';
 import UiIcon from './UiIcon.vue';
 
 const props = defineProps({
@@ -94,10 +94,9 @@ async function submit() {
             headers: { Accept: 'application/json' },
             body: formData,
         });
-        const json = await res.json();
+        const json = await parseApiResponse(res);
         if (!res.ok) {
-            const photoError = json.errors?.photo?.[0];
-            throw new Error(photoError || json.message || 'Ошибка отправки');
+            throw new Error(apiErrorMessage(res, json));
         }
         emit('submit', json.data);
         success.value = true;

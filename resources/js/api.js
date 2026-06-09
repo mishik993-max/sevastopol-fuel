@@ -27,3 +27,30 @@ export async function parseApiResponse(res) {
 
     throw new Error(text.slice(0, 160) || `Ошибка запроса (${res.status})`);
 }
+
+/** @param {Response} res @param {Record<string, unknown>} [json] */
+export function apiErrorMessage(res, json = {}) {
+    if (res.status === 429) {
+        const retry = res.headers.get('Retry-After');
+
+        return retry
+            ? `Слишком много запросов. Подождите ${retry} сек.`
+            : 'Слишком много запросов. Подождите минуту и попробуйте снова.';
+    }
+
+    const errors = json.errors;
+
+    if (errors && typeof errors === 'object') {
+        const first = Object.values(errors).flat()[0];
+
+        if (first) {
+            return String(first);
+        }
+    }
+
+    if (json.message) {
+        return String(json.message);
+    }
+
+    return `Ошибка запроса (${res.status})`;
+}

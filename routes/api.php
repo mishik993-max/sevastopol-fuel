@@ -18,8 +18,8 @@ Route::middleware('throttle:60,1')->group(function () {
     Route::get('/stations/nearby', [StationController::class, 'nearby']);
     Route::get('/stations/{station}', [StationController::class, 'show']);
 
-    Route::post('/reports', [ReportController::class, 'store'])->middleware('throttle:10,1');
-    Route::post('/stations/{station}/confirm', [ReportController::class, 'confirm'])->middleware('throttle:10,1');
+    Route::post('/reports', [ReportController::class, 'store'])->middleware('throttle:reports-store');
+    Route::post('/stations/{station}/confirm', [ReportController::class, 'confirm'])->middleware('throttle:reports-confirm');
     Route::post('/stations/{station}/close', [StationClosureController::class, 'store'])->middleware('throttle:10,1');
     Route::post('/stations/{station}/corrections', [StationCorrectionController::class, 'store'])->middleware('throttle:10,60');
     Route::post('/stations/{station}/corrections/{correction}/confirm', [StationCorrectionController::class, 'confirm'])->middleware('throttle:30,1');

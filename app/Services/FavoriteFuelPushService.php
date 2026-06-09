@@ -21,6 +21,13 @@ class FavoriteFuelPushService
             return;
         }
 
+        Log::info('Fuel push: report received', [
+            'report_id' => $report->id,
+            'station_id' => $report->station_id,
+            'fuel_type' => $report->fuel_type->value,
+            'status' => $report->status->value,
+        ]);
+
         $station = $report->station ?? Station::query()->find($report->station_id);
 
         if ($station === null || ! $station->is_active) {
@@ -40,7 +47,7 @@ class FavoriteFuelPushService
         $oldFuel = $this->statusService->fuelStatus($station, $fuelType, $oldReports);
 
         if ($oldFuel['marker_color'] === 'green' || $newFuel['marker_color'] !== 'green') {
-            Log::debug('Fuel push skipped: no green transition', [
+            Log::info('Fuel push skipped: no green transition', [
                 'station_id' => $station->id,
                 'fuel_type' => $fuelValue,
                 'report_id' => $report->id,

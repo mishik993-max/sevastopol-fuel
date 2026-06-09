@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { FUEL_TYPES } from '../constants';
 import { useFavoriteStations } from '../composables/useFavoriteStations';
+import { usePushNotifications } from '../composables/usePushNotifications';
 import PhotoLightbox from './PhotoLightbox.vue';
 import UiIcon from './UiIcon.vue';
 
@@ -25,6 +26,7 @@ const emit = defineEmits([
 const lightboxSrc = ref(null);
 const favoriteError = ref(null);
 const { isFavorite, toggle } = useFavoriteStations();
+const { subscribed: pushSubscribed } = usePushNotifications();
 
 const favorite = computed(() => isFavorite(props.station.id));
 const favoritePop = ref(false);
@@ -225,6 +227,12 @@ function onToggleFavorite() {
                     </button>
                 </div>
                 <p v-if="favoriteError" class="station-favorite-error">{{ favoriteError }}</p>
+                <p v-if="favorite && pushSubscribed" class="station-favorite-hint">
+                    Уведомим, когда на этой АЗС появится {{ fuelLabel(selectedFuel) }}
+                </p>
+                <p v-else-if="favorite" class="station-favorite-hint">
+                    ★ В «Мои АЗС». Включите уведомления — push, когда появится {{ fuelLabel(selectedFuel) }}
+                </p>
             </header>
 
             <section v-if="activeFuel" class="status-card" :class="`status-card--${activeFuel.status}`">

@@ -51,8 +51,8 @@ function dismiss() {
             <UiIcon name="bell" :size="16" color="#C8A840" />
         </span>
         <div class="push-text">
-            <span class="push-text-main">Включите уведомления о QR на АЗС</span>
-            <span class="push-text-sub">{{ qrReminderLabel }}</span>
+            <span class="push-text-main">Уведомления: QR и «Мои АЗС»</span>
+            <span class="push-text-sub">{{ qrReminderLabel }}. ★ на заправке — push, когда появится топливо.</span>
             <span v-if="error" class="push-error">{{ error }}</span>
             <span v-else-if="!swReady && !loading" class="push-hint">Загрузка Service Worker…</span>
             <span v-else-if="blocked" class="push-hint">Уведомления заблокированы в браузере</span>

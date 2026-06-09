@@ -26,6 +26,8 @@ class Report extends Model
         'comment',
         'photo_path',
         'is_confirmation',
+        'confirms_report_id',
+        'reporter_hash',
         'is_hidden',
         'created_at',
     ];

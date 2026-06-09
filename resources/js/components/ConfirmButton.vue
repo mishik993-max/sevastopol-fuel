@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { FUEL_TYPES } from '../constants';
-import { apiUrl } from '../api';
+import { apiUrl, apiErrorMessage, parseApiResponse } from '../api';
 import UiIcon from './UiIcon.vue';
 
 const props = defineProps({
@@ -28,10 +28,9 @@ async function confirm() {
             },
             body: JSON.stringify({ fuel_type: fuelType.value }),
         });
-        const json = await res.json();
+        const json = await parseApiResponse(res);
         if (!res.ok) {
-            const msg = json.errors?.fuel_type?.[0] || json.message || 'Ошибка';
-            throw new Error(msg);
+            throw new Error(apiErrorMessage(res, json));
         }
         emit('done', json.data);
     } catch (e) {

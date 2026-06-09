@@ -3825,6 +3825,13 @@ body {
     color: #f87171;
 }
 
+.station-favorite-hint {
+    margin: 6px 0 0;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: var(--gold);
+}
+
 .station-list-favorite-star {
     margin-right: 4px;
     vertical-align: -1px;

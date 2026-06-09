@@ -9,13 +9,17 @@ use App\Http\Requests\ConfirmReportRequest;
 use App\Http\Requests\StoreReportRequest;
 use App\Models\Report;
 use App\Models\Station;
+use App\Services\StationClosureService;
 use App\Services\StationStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 
 class ReportController extends Controller
 {
-    public function __construct(private StationStatusService $statusService) {}
+    public function __construct(
+        private StationStatusService $statusService,
+        private StationClosureService $closureService,
+    ) {}
 
     public function store(StoreReportRequest $request): JsonResponse
     {
@@ -61,30 +65,46 @@ class ReportController extends Controller
     {
         $fuelType = FuelType::from($request->validated('fuel_type'));
 
-        $latest = Report::query()
+        $anchor = Report::query()
             ->visible()
             ->where('station_id', $station->id)
             ->where('fuel_type', $fuelType)
+            ->where('is_confirmation', false)
             ->orderByDesc('created_at')
             ->first();
 
-        if ($latest === null) {
+        if ($anchor === null) {
             throw ValidationException::withMessages([
                 'fuel_type' => ['Нечего подтверждать для этого вида топлива.'],
             ]);
         }
 
+        $reporterHash = $this->closureService->reporterHash($request);
+
+        $alreadyConfirmed = Report::query()
+            ->where('confirms_report_id', $anchor->id)
+            ->where('reporter_hash', $reporterHash)
+            ->exists();
+
+        if ($alreadyConfirmed) {
+            throw ValidationException::withMessages([
+                'fuel_type' => ['Вы уже подтверждали этот отчёт.'],
+            ]);
+        }
+
         Report::query()->create([
             'station_id' => $station->id,
-            'fuel_type' => $latest->fuel_type,
-            'status' => $latest->status,
-            'statuses' => $latest->statuses,
-            'queue_size' => $latest->queue_size,
-            'sale_types' => $latest->sale_types,
-            'fill_volume' => $latest->fill_volume,
+            'fuel_type' => $anchor->fuel_type,
+            'status' => $anchor->status,
+            'statuses' => $anchor->statuses,
+            'queue_size' => $anchor->queue_size,
+            'sale_types' => $anchor->sale_types,
+            'fill_volume' => $anchor->fill_volume,
             'comment' => null,
             'photo_path' => null,
             'is_confirmation' => true,
+            'confirms_report_id' => $anchor->id,
+            'reporter_hash' => $reporterHash,
             'created_at' => now(),
         ]);
 

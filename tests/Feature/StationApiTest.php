@@ -53,6 +53,11 @@ class StationApiTest extends TestCase
             'fuel_type' => 'a95',
         ])->assertOk();
 
+        $this->postJson("/api/stations/{$station->id}/confirm", [
+            'fuel_type' => 'a95',
+        ])->assertStatus(422)
+            ->assertJsonPath('errors.fuel_type.0', 'Вы уже подтверждали этот отчёт.');
+
         $this->assertEquals(2, Report::query()->count());
         $this->assertTrue(Report::query()->latest('id')->first()->is_confirmation);
     }

@@ -30,6 +30,7 @@ class CheckFuelPush extends Command
         }
 
         $this->line('APP_URL: '.config('app.url'));
+        $this->line('LOG_LEVEL: '.config('logging.channels.single.level', config('logging.level', 'debug')));
         $this->line('Cooldown: '.config('notifications.fuel_push.cooldown_minutes', 45).' мин');
 
         $subs = PushSubscription::query()->count();
@@ -87,18 +88,28 @@ class CheckFuelPush extends Command
                 $reports,
             );
 
+            $watchCount = PushSubscriptionWatch::query()
+                ->where('station_id', $station->id)
+                ->where('fuel_type', $fuel)
+                ->count();
+
             $this->newLine();
             $this->line("АЗС #{$station->id} {$station->network} «{$station->name}» · {$fuel}:");
             $this->line('  marker_color: '.$fuelStatus['marker_color']);
             $this->line('  status: '.$fuelStatus['status'].' ('.$fuelStatus['status_label'].')');
             $this->line('  freshness: '.$fuelStatus['freshness']);
-            $this->line('  watches на эту АЗС: '.PushSubscriptionWatch::query()
-                ->where('station_id', $station->id)
-                ->where('fuel_type', $fuel)
-                ->count());
+            $this->line("  watches на эту АЗС: {$watchCount}");
+
+            $fuelReports = $reports->filter(
+                fn (Report $report) => $report->fuel_type->value === $fuel,
+            );
 
             $this->line('  Последние отчёты по этому топливу:');
-            $reports->where('fuel_type', $fuel)->take(3)->each(function (Report $report) {
+            if ($fuelReports->isEmpty()) {
+                $this->line('    (нет)');
+            }
+
+            $fuelReports->take(3)->each(function (Report $report) {
                 $this->line(sprintf(
                     '    #%d %s · %s · confirmation=%s',
                     $report->id,
@@ -108,11 +119,20 @@ class CheckFuelPush extends Command
                 ));
             });
 
+            if ($watchCount > 0 && $fuelStatus['marker_color'] !== 'green') {
+                $this->info('  → Следующий отчёт «Есть» (не confirm) должен отправить push на '.$watchCount.' watch(ей).');
+            } elseif ($watchCount > 0 && $fuelStatus['marker_color'] === 'green') {
+                $this->warn('  → Сейчас уже green: push только после «Нет» и снова «Есть».');
+            } else {
+                $this->warn('  → Нет watch на эту АЗС/топливо — ★ не синхронизирован.');
+            }
+
             $this->line('  Push уйдёт только при переходе marker → green (не confirm).');
         }
 
         $this->newLine();
-        $this->line('Логи: grep -i "fuel push\\|Favorite fuel" storage/logs/laravel.log | tail -20');
+        $this->line('Логи: grep -i "Fuel push" storage/logs/laravel.log | tail -20');
+        $this->line('  Пусто = после деплоя не было новых отчётов (не confirm).');
 
         return self::SUCCESS;
     }
