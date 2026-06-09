@@ -93,7 +93,44 @@ export function usePushNotifications() {
         localStorage.removeItem('push_dismissed');
     }
 
-    return { subscribed, supported, permissionState, subscribe };
+    async function syncExistingSubscription() {
+        if (!supported.value || Notification.permission !== 'granted') {
+            return;
+        }
+
+        try {
+            const registration = await waitForServiceWorker();
+            const subscription = await registration.pushManager.getSubscription();
+
+            if (!subscription) {
+                if (localStorage.getItem('push_subscribed')) {
+                    localStorage.removeItem('push_subscribed');
+                }
+                subscribed.value = false;
+
+                return;
+            }
+
+            const json = subscription.toJSON();
+            const saveRes = await fetch(apiUrl('/api/push/subscribe'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({
+                    endpoint: json.endpoint,
+                    keys: json.keys,
+                }),
+            });
+
+            if (saveRes.ok) {
+                subscribed.value = true;
+                localStorage.setItem('push_subscribed', '1');
+            }
+        } catch {
+            // ignore background sync errors
+        }
+    }
+
+    return { subscribed, supported, permissionState, subscribe, syncExistingSubscription };
 }
 
 function urlBase64ToUint8Array(base64String) {

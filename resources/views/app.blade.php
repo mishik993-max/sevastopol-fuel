@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+    @php
+        $siteUrl = rtrim(config('app.url'), '/');
+        $canonical = $siteUrl . '/';
+        $seoTitle = config('seo.title');
+        $seoDescription = config('seo.description');
+        $seoSiteName = config('seo.site_name');
+        $ogImage = $siteUrl . config('seo.og_image');
+    @endphp
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="referrer" content="strict-origin-when-cross-origin">
@@ -11,6 +19,23 @@
     <meta name="apple-mobile-web-app-title" content="Топливо">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="app-base" content="{{ request()->getSchemeAndHttpHost() . request()->getBaseUrl() }}">
+    <title>{{ $seoTitle }}</title>
+    <meta name="description" content="{{ $seoDescription }}">
+    <meta name="keywords" content="{{ config('seo.keywords') }}">
+    <link rel="canonical" href="{{ $canonical }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ $seoSiteName }}">
+    <meta property="og:locale" content="{{ config('seo.locale') }}">
+    <meta property="og:url" content="{{ $canonical }}">
+    <meta property="og:title" content="{{ $seoTitle }}">
+    <meta property="og:description" content="{{ $seoDescription }}">
+    <meta property="og:image" content="{{ $ogImage }}">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ $seoTitle }}">
+    <meta name="twitter:description" content="{{ $seoDescription }}">
+    <meta name="twitter:image" content="{{ $ogImage }}">
     <link rel="manifest" href="/build/manifest.webmanifest">
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/icons/app-icon.svg" type="image/svg+xml">
@@ -18,7 +43,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-    <title>{{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
