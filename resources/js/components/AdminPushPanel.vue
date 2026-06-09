@@ -1,12 +1,13 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { apiUrl } from '../api';
+import { apiUrl, parseApiResponse } from '../api';
 
 const props = defineProps({
     authHeaders: { type: Function, required: true },
+    subscriptionCount: { type: Number, default: null },
 });
 
-const emit = defineEmits(['error', 'saved']);
+const emit = defineEmits(['error', 'saved', 'refresh']);
 
 const PUSH_TEMPLATES = [
     {
@@ -71,19 +72,15 @@ function applyTemplate() {
 }
 
 async function loadDefaults() {
+    if (props.subscriptionCount !== null) {
+        pushSubscriptions.value = props.subscriptionCount;
+    }
+
     try {
-        const [statusRes, settingsRes] = await Promise.all([
-            fetch(apiUrl('/api/admin/push/status'), { headers: props.authHeaders() }),
-            fetch(apiUrl('/api/admin/settings'), { headers: props.authHeaders() }),
-        ]);
+        const settingsRes = await fetch(apiUrl('/api/admin/settings'), { headers: props.authHeaders() });
+        const settingsJson = await parseApiResponse(settingsRes);
 
-        const statusJson = await statusRes.json();
-        const settingsJson = await settingsRes.json();
-
-        if (!statusRes.ok) throw new Error(statusJson.message || 'Ошибка загрузки push');
         if (!settingsRes.ok) throw new Error(settingsJson.message || 'Ошибка загрузки настроек');
-
-        pushSubscriptions.value = statusJson.data.subscriptions;
 
         const reminders = settingsJson.data.qr_reminders || [];
         const withUrl = reminders.find((r) => r.url?.trim());
@@ -93,6 +90,24 @@ async function loadDefaults() {
         if (!manualPush.value.url && defaultBotUrl.value) {
             manualPush.value.url = defaultBotUrl.value;
         }
+    } catch (e) {
+        emit('error', e.message);
+    }
+}
+
+async function refreshSubscriptionCount() {
+    if (props.subscriptionCount !== null) {
+        pushSubscriptions.value = props.subscriptionCount;
+        return;
+    }
+
+    try {
+        const statusRes = await fetch(apiUrl('/api/admin/push/status'), { headers: props.authHeaders() });
+        const statusJson = await parseApiResponse(statusRes);
+
+        if (!statusRes.ok) throw new Error(statusJson.message || 'Ошибка загрузки push');
+
+        pushSubscriptions.value = statusJson.data.subscriptions;
     } catch (e) {
         pushSubscriptions.value = null;
         emit('error', e.message);
@@ -118,13 +133,14 @@ async function sendPush() {
                 url: manualPush.value.url.trim(),
             }),
         });
-        const json = await res.json();
+        const json = await parseApiResponse(res);
 
         if (!res.ok) throw new Error(json.message || 'Ошибка отправки');
 
         pushSendNotice.value = json.message;
         emit('saved', json.message);
-        await loadDefaults();
+        emit('refresh');
+        await refreshSubscriptionCount();
     } catch (e) {
         emit('error', e.message);
     } finally {
@@ -139,7 +155,21 @@ watch(qrTime, () => {
     }
 });
 
-onMounted(loadDefaults);
+watch(
+    () => props.subscriptionCount,
+    (count) => {
+        if (count !== null) {
+            pushSubscriptions.value = count;
+        }
+    },
+);
+
+onMounted(async () => {
+    await loadDefaults();
+    if (props.subscriptionCount === null) {
+        await refreshSubscriptionCount();
+    }
+});
 </script>
 
 <template>

@@ -72,6 +72,7 @@ class AdminController extends Controller
                 'new_feedback' => $this->feedbackService->newCount(),
                 'visible_reports' => $this->reportService->visibleCount(),
                 'hidden_reports' => $this->reportService->hiddenCount(),
+                'push_subscriptions' => PushSubscription::query()->count(),
             ],
         ]);
     }

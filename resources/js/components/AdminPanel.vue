@@ -13,7 +13,13 @@ const tab = ref('corrections');
 const corrections = ref([]);
 const feedback = ref([]);
 const reports = ref([]);
-const summary = ref({ pending_corrections: 0, new_feedback: 0, visible_reports: 0, hidden_reports: 0 });
+const summary = ref({
+    pending_corrections: 0,
+    new_feedback: 0,
+    visible_reports: 0,
+    hidden_reports: 0,
+    push_subscriptions: 0,
+});
 const loading = ref(false);
 const error = ref(null);
 const loginError = ref(null);
@@ -85,7 +91,14 @@ async function login() {
 
 async function loadSummary() {
     const json = await apiFetch('/api/admin/summary');
-    summary.value = json.data;
+    summary.value = {
+        pending_corrections: 0,
+        new_feedback: 0,
+        visible_reports: 0,
+        hidden_reports: 0,
+        push_subscriptions: 0,
+        ...json.data,
+    };
 }
 
 async function loadCorrections() {
@@ -184,7 +197,13 @@ function logout() {
     corrections.value = [];
     feedback.value = [];
     reports.value = [];
-    summary.value = { pending_corrections: 0, new_feedback: 0, visible_reports: 0, hidden_reports: 0 };
+    summary.value = {
+        pending_corrections: 0,
+        new_feedback: 0,
+        visible_reports: 0,
+        hidden_reports: 0,
+        push_subscriptions: 0,
+    };
 }
 
 function correctionSummary(item) {
@@ -286,7 +305,7 @@ onMounted(() => {
                     type="button"
                     class="admin-nav-item"
                     :class="{ 'admin-nav-item--active': tab === 'push' }"
-                    @click="tab = 'push'"
+                    @click="tab = 'push'; loadSummary()"
                 >
                     Срочный push
                 </button>
@@ -493,8 +512,10 @@ onMounted(() => {
                 <AdminPushPanel
                     v-if="tab === 'push'"
                     :auth-headers="authHeaders"
+                    :subscription-count="summary.push_subscriptions"
                     @error="error = $event"
                     @saved="(msg) => { saveNotice = msg; error = null; }"
+                    @refresh="loadSummary()"
                 />
 
                 <AdminSettingsPanel
