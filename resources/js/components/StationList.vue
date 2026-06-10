@@ -110,7 +110,7 @@ function freshnessShort(station) {
 
 <template>
     <div class="station-list-wrap">
-        <p v-if="sortByDistance" class="station-list-hint">Сортировка: ближайшие сверху</p>
+        <p v-if="sortByDistance" class="station-list-hint">Сначала ближайшие к вам</p>
         <div v-if="sortedStations.length" class="station-list-cards">
             <button
                 v-for="station in sortedStations"
@@ -160,10 +160,10 @@ function freshnessShort(station) {
             </button>
         </div>
         <p v-else class="station-list-empty">
-            {{ favoritesOnly ? 'Нет избранных АЗС. Нажмите ★ на карточке заправки.' : 'Нет АЗС по выбранным фильтрам' }}
+            {{ favoritesOnly ? 'Вы пока не отметили ни одной заправки. Откройте заправку и нажмите на звезду.' : 'Нет заправок по выбранным условиям' }}
         </p>
         <p v-if="sortedStations.length" class="station-list-footer">
-            Показано {{ sortedStations.length }} АЗС
+            Показано заправок: {{ sortedStations.length }}
         </p>
     </div>
 </template>

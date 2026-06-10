@@ -20,18 +20,18 @@ export function usePushNotifications() {
     async function subscribe() {
         if (!supported.value) {
             if (!window.isSecureContext) {
-                throw new Error('Уведомления работают только по HTTPS (или localhost)');
+                throw new Error('Уведомления работают только на защищённом сайте (адрес начинается с https)');
             }
 
-            throw new Error('Push не поддерживается в этом браузере');
+            throw new Error('Этот браузер не умеет показывать уведомления');
         }
 
         permissionState.value = Notification.permission;
 
         if (Notification.permission === 'denied') {
             throw new Error(
-                'Уведомления заблокированы. Нажмите на замок в адресной строке → '
-                + '«Уведомления» → «Разрешить», затем обновите страницу.',
+                'Уведомления отключены. Нажмите на значок замка слева от адреса сайта, '
+                + 'выберите «Уведомления» и «Разрешить», затем обновите страницу.',
             );
         }
 
@@ -41,13 +41,13 @@ export function usePushNotifications() {
 
             if (permission === 'denied') {
                 throw new Error(
-                    'Вы отклонили уведомления. Разрешите их в настройках сайта '
-                    + '(замок в адресной строке) и обновите страницу.',
+                    'Вы отказались от уведомлений. Разрешить их можно через значок замка '
+                    + 'слева от адреса сайта, потом обновите страницу.',
                 );
             }
 
             if (permission !== 'granted') {
-                throw new Error('Разрешение не получено - нажмите «Разрешить» в запросе браузера');
+                throw new Error('Чтобы получать уведомления, нажмите «Разрешить» в окне браузера');
             }
         }
 
@@ -55,7 +55,7 @@ export function usePushNotifications() {
 
         const keyRes = await fetch(apiUrl('/api/push/vapid-public-key'));
         if (!keyRes.ok) {
-            throw new Error('Не удалось получить ключ уведомлений с сервера');
+            throw new Error('Не удалось включить уведомления. Попробуйте позже.');
         }
 
         const { public_key: publicKey } = await keyRes.json();
@@ -72,7 +72,7 @@ export function usePushNotifications() {
             });
         } catch (e) {
             throw new Error(
-                'Не удалось подписаться на push. Обновите страницу (Ctrl+Shift+R) и попробуйте снова.',
+                'Не удалось включить уведомления. Обновите страницу и попробуйте снова.',
             );
         }
 
@@ -88,7 +88,7 @@ export function usePushNotifications() {
         });
 
         if (!saveRes.ok) {
-            throw new Error('Сервер не сохранил подписку');
+            throw new Error('Не удалось сохранить. Попробуйте позже.');
         }
 
         subscribed.value = true;

@@ -51,7 +51,7 @@ async function confirm() {
                 </span>
                 <div class="modal-report-head-text">
                     <h2>Подтверждаю</h2>
-                    <p>Информация на карте актуальна</p>
+                    <p>Я был на заправке, всё так и есть</p>
                 </div>
                 <button class="close-btn close-btn--square" type="button" @click="emit('close')">
                     <UiIcon name="x" :size="14" color="#7A7570" />
@@ -60,7 +60,7 @@ async function confirm() {
 
             <div class="modal-report-form">
                 <fieldset>
-                    <legend class="section-label">Топливо</legend>
+                    <legend class="section-label">Какое топливо?</legend>
                     <div class="radio-grid">
                         <label v-for="f in FUEL_TYPES" :key="f.value" class="radio-label">
                             <input v-model="fuelType" type="radio" :value="f.value" />

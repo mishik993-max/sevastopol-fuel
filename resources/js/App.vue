@@ -380,7 +380,7 @@ async function nearby() {
         await locate({ userRequested: true });
 
         if (!position.value || !isInBbox(position.value.lat, position.value.lng)) {
-            geoNotice.value = 'Вы вне Севастополя - показаны все АЗС';
+            geoNotice.value = 'Вы не в Севастополе, показаны все заправки';
             mode.value = 'all';
             await fetchStations(selectedFuel.value);
             return;
@@ -604,7 +604,7 @@ async function onStationClosed() {
                     <button type="button" class="topbar-icon-btn" title="Статистика" @click="showStats = true">
                         <UiIcon name="gauge" :size="16" color="#7A7570" />
                     </button>
-                    <button type="button" class="topbar-icon-btn" title="Обратная связь" @click="showFeedback = true">
+                    <button type="button" class="topbar-icon-btn" title="Написать нам" @click="showFeedback = true">
                         <UiIcon name="message-square" :size="16" color="#7A7570" />
                     </button>
                     <button
@@ -826,8 +826,8 @@ async function onStationClosed() {
                 <button
                     type="button"
                     class="map-fab-circle map-fab-circle--action"
-                    title="Добавить АЗС"
-                    aria-label="Добавить АЗС"
+                    title="Добавить заправку"
+                    aria-label="Добавить заправку"
                     @click="openAddStation"
                 >
                     +

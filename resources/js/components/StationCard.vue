@@ -88,7 +88,7 @@ const closureButtonLabel = computed(() => {
     const count = props.station.closure_reports_count ?? 0;
     const required = props.station.closure_reports_required ?? 5;
 
-    return `АЗС больше не работает (${count}/${required})`;
+    return `Заправка не работает (${count} из ${required})`;
 });
 
 function fuelLabel(value) {
@@ -97,7 +97,7 @@ function fuelLabel(value) {
 
 function statusTitle(fuel) {
     if (!fuel || fuel.freshness === 'unknown' || fuel.status === 'unknown') {
-        return 'Нет отчётов';
+        return 'Пока нет данных';
     }
 
     return fuel.status_label;
@@ -109,7 +109,7 @@ function statusSub(fuel) {
     }
 
     if (fuel.freshness === 'unknown') {
-        return `По ${fuelLabel(fuel.fuel_type)} - сообщите, будьте первым`;
+        return `Про ${fuelLabel(fuel.fuel_type)} ещё никто не писал. Расскажите первым!`;
     }
 
     return fuel.freshness_label;
@@ -152,19 +152,21 @@ function reportMeta(item) {
 }
 
 function showQueue(item) {
-    return item.queue_label && item.queue_label !== 'Нет';
+    return item.queue_label
+        && item.queue_label !== 'Очереди нет'
+        && item.queue_label !== 'Не знаю';
 }
 
 function correctionSummary(item) {
     if (item.field === 'location') {
-        return 'Перенос маркера на карте';
+        return 'Предлагают передвинуть точку на карте';
     }
 
-    return `${item.field_label}: «${item.current_value}» → «${item.proposed_value}»`;
+    return `${item.field_label}: «${item.current_value}» меняют на «${item.proposed_value}»`;
 }
 
 function confirmCorrectionLabel(item) {
-    return `Данные верны (${item.confirmations_count}/${item.confirmations_required})`;
+    return `Всё верно (${item.confirmations_count} из ${item.confirmations_required})`;
 }
 
 function openPhoto(url) {
@@ -235,10 +237,10 @@ function onToggleFavorite() {
                 </div>
                 <p v-if="favoriteError" class="station-favorite-error">{{ favoriteError }}</p>
                 <p v-if="favorite && pushSubscribed" class="station-favorite-hint">
-                    Уведомим, когда на этой АЗС появится {{ fuelLabel(selectedFuel) }}
+                    Сообщим на телефон, когда на этой заправке появится {{ fuelLabel(selectedFuel) }}
                 </p>
                 <p v-else-if="favorite" class="station-favorite-hint">
-                    ★ В «Мои АЗС». Включите уведомления - push, когда появится {{ fuelLabel(selectedFuel) }}
+                    Заправка в списке «Мои АЗС». Разрешите уведомления, и мы сообщим, когда здесь появится {{ fuelLabel(selectedFuel) }}
                 </p>
             </header>
 
@@ -282,7 +284,7 @@ function onToggleFavorite() {
             </section>
 
             <section class="fuel-grid-section">
-                <div class="section-label">Все виды</div>
+                <div class="section-label">Всё топливо</div>
                 <div class="fuel-grid">
                     <button
                         v-for="fuel in station.fuels"
@@ -337,7 +339,7 @@ function onToggleFavorite() {
 
             <section v-if="fuelReports.length" class="report-feed">
                 <div class="section-label">
-                    Сообщения · {{ fuelLabel(selectedFuel) }}
+                    Что пишут о топливе {{ fuelLabel(selectedFuel) }}
                 </div>
 
                 <article
@@ -392,7 +394,7 @@ function onToggleFavorite() {
             </section>
 
             <section v-if="pendingCorrections.length" class="corrections-section">
-                <div class="section-label">Ожидают подтверждения</div>
+                <div class="section-label">Кто-то предложил исправления</div>
                 <div v-for="item in pendingCorrections" :key="item.id" class="correction-card">
                     <p class="correction-card-text">{{ correctionSummary(item) }}</p>
                     <button

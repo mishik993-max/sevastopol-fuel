@@ -42,7 +42,7 @@ export function useFavoriteStations() {
         }
 
         if (favoriteIds.value.length >= MAX_FAVORITES) {
-            throw new Error(`Можно сохранить не больше ${MAX_FAVORITES} АЗС`);
+            throw new Error(`Можно отметить не больше ${MAX_FAVORITES} заправок`);
         }
 
         favoriteIds.value = [...favoriteIds.value, id];

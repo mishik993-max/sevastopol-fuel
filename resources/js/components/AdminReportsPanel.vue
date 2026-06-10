@@ -123,7 +123,7 @@ function metaLine(item) {
         parts.push(item.canister_policy_label);
     }
 
-    if (item.queue_label && item.queue_label !== 'Нет') {
+    if (item.queue_label && item.queue_label !== 'Очереди нет' && item.queue_label !== 'Не знаю') {
         parts.push(`Очередь: ${item.queue_label}`);
     }
 

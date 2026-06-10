@@ -96,7 +96,7 @@ function fieldLabel(field) {
         <h2>Импорт АЗС из OpenStreetMap</h2>
         <p class="hint">
             Автообновление по расписанию отключено. Загрузите превью, проверьте изменения и примените вручную.
-            Сбор данных через Nominatim занимает 1–2 минуты.
+            Сбор данных через Nominatim занимает 1-2 минуты.
         </p>
 
         <div class="admin-item-actions admin-osm-actions">

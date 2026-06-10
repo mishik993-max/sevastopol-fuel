@@ -11,9 +11,9 @@ const emit = defineEmits(['accept', 'decline', 'open-legal']);
             <UiIcon name="cookie" :size="18" color="#7A7570" />
         </span>
         <div class="cookie-banner-body">
-            <strong class="cookie-banner-title">Мы используем cookies</strong>
+            <strong class="cookie-banner-title">Сайт запоминает ваши настройки</strong>
             <p class="cookie-banner-text">
-                Для работы карты и сохранения фильтров (до {{ cookieConsentDays }} дней).
+                Мы сохраняем небольшие файлы (cookie), чтобы карта работала и помнила выбранное вами топливо и сеть (до {{ cookieConsentDays }} дней).
                 <button type="button" class="cookie-banner-link" @click="emit('open-legal', 'privacy')">
                     Подробнее
                 </button>

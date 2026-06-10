@@ -7,16 +7,16 @@ const resolved = ref(false);
 
 function geoErrorMessage(err) {
     if (!window.isSecureContext) {
-        return 'Геолокация на телефоне работает только по HTTPS (не http://192.168…). Карта покажет Севастополь.';
+        return 'Определить местоположение можно только на защищённом сайте (адрес начинается с https). Пока покажем весь Севастополь.';
     }
 
     switch (err?.code) {
         case 1:
-            return 'Доступ к геолокации запрещён - разрешите в настройках браузера';
+            return 'Доступ к местоположению запрещён. Разрешите его в настройках браузера.';
         case 2:
-            return 'GPS недоступен - включите геолокацию в настройках телефона';
+            return 'Не удалось определить местоположение. Включите геолокацию в настройках телефона.';
         case 3:
-            return 'GPS не ответил вовремя - выйдите на улицу и попробуйте снова';
+            return 'Местоположение не определилось вовремя. Выйдите на улицу и попробуйте снова.';
         default:
             return 'Не удалось определить местоположение';
     }
@@ -30,7 +30,7 @@ export function useGeolocation() {
 
         return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
-                const msg = 'Геолокация не поддерживается';
+                const msg = 'Этот браузер не умеет определять местоположение';
                 if (userRequested) error.value = msg;
                 loading.value = false;
                 resolved.value = true;

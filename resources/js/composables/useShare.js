@@ -34,7 +34,7 @@ export function useShare() {
             return { ok: true, method: 'clipboard' };
         }
 
-        throw new Error('Поделиться не удалось в этом браузере');
+        throw new Error('Не получилось поделиться в этом браузере');
     }
 
     return { canShare, share };

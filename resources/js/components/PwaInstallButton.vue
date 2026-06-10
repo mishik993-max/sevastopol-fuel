@@ -41,7 +41,7 @@ async function onInstall() {
             </div>
             <div class="pwa-install-float__body">
                 <strong class="pwa-install-float__title">Установить приложение</strong>
-                <p class="pwa-install-float__text">sevazs.ru · PWA</p>
+                <p class="pwa-install-float__text">Будет как обычное приложение на телефоне</p>
             </div>
         </div>
         <div class="pwa-install-float__actions">

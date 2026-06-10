@@ -41,7 +41,7 @@ function togglePick() {
 
 function useMyLocation() {
     if (!props.userPosition) {
-        error.value = 'Геолокация недоступна';
+        error.value = 'Не удалось определить ваше местоположение';
         return;
     }
 
@@ -49,7 +49,7 @@ function useMyLocation() {
     const lng = Number(props.userPosition.lng);
 
     if (!isInSevastopolArea(lat, lng)) {
-        error.value = 'Ваше местоположение вне Севастополя';
+        error.value = 'Вы находитесь не в Севастополе';
         return;
     }
 
@@ -91,7 +91,7 @@ async function submit() {
     const corrections = buildCorrections();
 
     if (corrections.length === 0) {
-        error.value = 'Измените название, адрес или укажите новое место на карте';
+        error.value = 'Поменяйте название, адрес или передвиньте точку на карте';
         return;
     }
 
@@ -113,7 +113,7 @@ async function submit() {
         if (!res.ok) {
             const msg = json.message
                 || Object.values(json.errors || {}).flat().join(' ')
-                || 'Ошибка отправки';
+                || 'Не удалось отправить';
             throw new Error(msg);
         }
 
@@ -134,7 +134,7 @@ function onClose() {
 <template>
     <div v-if="picking" class="add-pick-bar">
         <div class="add-pick-bar-inner">
-            <p class="add-pick-bar-text">Нажмите на карту - куда перенести маркер</p>
+            <p class="add-pick-bar-text">Нажмите на карту - куда передвинуть заправку</p>
             <button type="button" class="btn btn-secondary btn-sm" @click="togglePick">
                 Отмена
             </button>
@@ -146,7 +146,7 @@ function onClose() {
             <button class="close-btn" type="button" @click="onClose">✕</button>
             <h2>Исправить данные</h2>
             <p class="hint">
-                {{ station.network }}- изменения применятся после 5 подтверждений от разных пользователей.
+                {{ station.network }}. Изменения появятся после того, как их подтвердят 5 разных человек.
             </p>
 
             <form @submit.prevent="submit">

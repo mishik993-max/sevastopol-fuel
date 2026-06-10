@@ -49,7 +49,7 @@ function togglePick() {
 
 function useMyLocation() {
     if (!props.userPosition) {
-        error.value = 'Геолокация недоступна';
+        error.value = 'Не удалось определить ваше местоположение';
         return;
     }
 
@@ -57,7 +57,7 @@ function useMyLocation() {
     const lng = Number(props.userPosition.lng);
 
     if (!isInBbox(lat, lng)) {
-        error.value = 'Ваше местоположение вне Севастополя';
+        error.value = 'Вы находитесь не в Севастополе';
         return;
     }
 
@@ -68,12 +68,12 @@ function useMyLocation() {
 
 async function submit() {
     if (!network.value) {
-        error.value = 'Укажите сеть';
+        error.value = 'Выберите или впишите сеть заправки';
         return;
     }
 
     if (latitude.value === null || longitude.value === null) {
-        error.value = 'Укажите точку на карте или координаты';
+        error.value = 'Поставьте точку на карте, где стоит заправка';
         return;
     }
 
@@ -101,7 +101,7 @@ async function submit() {
         if (!res.ok) {
             const msg = json.message
                 || Object.values(json.errors || {}).flat().join(' ')
-                || 'Ошибка сохранения';
+                || 'Не удалось сохранить';
             throw new Error(msg);
         }
 
@@ -132,8 +132,8 @@ function onClose() {
     <div v-else class="modal-overlay" @click.self="onClose">
         <div class="modal">
             <button class="close-btn" type="button" @click="onClose">✕</button>
-            <h2>Добавить АЗС</h2>
-            <p class="hint">Если заправки нет на карте - укажите её для всех пользователей.</p>
+            <h2>Добавить заправку</h2>
+            <p class="hint">Не нашли заправку на карте? Добавьте её, и её увидят все.</p>
 
             <form @submit.prevent="submit">
                 <label class="field">
@@ -149,8 +149,8 @@ function onClose() {
                 </label>
 
                 <label class="field">
-                    Название (необязательно)
-                    <input v-model="name" class="field-input" type="text" maxlength="120" placeholder="Напр. АЗС №3" />
+                    Название (по желанию)
+                    <input v-model="name" class="field-input" type="text" maxlength="120" placeholder="Например: АЗС №3" />
                 </label>
 
                 <label class="field">

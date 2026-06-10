@@ -13,7 +13,7 @@ const emit = defineEmits(['submit', 'close']);
 
 const fuelType = ref(props.selectedFuel);
 const statuses = ref(['available']);
-const queueSize = ref('none');
+const queueSize = ref('unknown');
 const saleTypes = ref(['regular']);
 const fillVolume = ref('liters_20');
 const canisterPolicy = ref('');
@@ -63,12 +63,12 @@ function onStatusChange(value, event) {
 
 async function submit() {
     if (!statuses.value.length) {
-        error.value = 'Выберите хотя бы один статус';
+        error.value = 'Отметьте, что с топливом: есть, мало или закончилось';
         return;
     }
 
     if (showSaleTypes.value && !saleTypes.value.length) {
-        error.value = 'Выберите хотя бы один способ отпуска';
+        error.value = 'Отметьте, как продают топливо';
         return;
     }
 
@@ -153,12 +153,12 @@ function onPhotoChange(e) {
                     <div class="report-success__icon">
                         <UiIcon name="check" :size="32" color="#22C55E" />
                     </div>
-                    <h2 class="report-success__title">Спасибо за отчёт!</h2>
+                    <h2 class="report-success__title">Спасибо!</h2>
                     <p class="report-success__text">
-                        Ваша информация поможет другим водителям Севастополя
+                        Вы помогли другим водителям Севастополя сэкономить время
                     </p>
                     <button type="button" class="btn btn-secondary btn-block" @click="emit('close')">
-                        Вернуться
+                        Закрыть
                     </button>
                 </div>
             </template>
@@ -170,7 +170,7 @@ function onPhotoChange(e) {
                         <UiIcon name="message-square" :size="18" color="#E8B84B" />
                     </span>
                     <div class="modal-report-head-text">
-                        <h2>Сообщить об АЗС</h2>
+                        <h2>Расскажите о заправке</h2>
                         <p>{{ station.network }} · {{ station.address || station.name }}</p>
                     </div>
                     <button class="close-btn close-btn--square" type="button" @click="emit('close')">
@@ -180,7 +180,7 @@ function onPhotoChange(e) {
 
                 <form class="modal-report-form" @submit.prevent="submit">
                 <fieldset>
-                    <legend>Какое топливо?</legend>
+                    <legend>Какое топливо проверяли?</legend>
                     <div class="radio-grid">
                         <label v-for="f in FUEL_TYPES" :key="f.value" class="radio-label">
                             <input v-model="fuelType" type="radio" :value="f.value" />
@@ -190,7 +190,7 @@ function onPhotoChange(e) {
                 </fieldset>
 
                 <fieldset>
-                    <legend>Статус? <span class="fieldset-hint">можно несколько</span></legend>
+                    <legend>Что с этим топливом? <span class="fieldset-hint">можно отметить несколько</span></legend>
                     <div class="check-grid">
                         <label v-for="s in FUEL_STATUSES" :key="s.value" class="check-label">
                             <input
@@ -205,7 +205,7 @@ function onPhotoChange(e) {
                 </fieldset>
 
                 <fieldset v-if="showSaleTypes">
-                    <legend>Как отпускают? <span class="fieldset-hint">можно несколько</span></legend>
+                    <legend>Как продают топливо? <span class="fieldset-hint">можно отметить несколько</span></legend>
                     <div class="check-grid">
                         <label v-for="t in SALE_TYPES" :key="t.value" class="check-label">
                             <input v-model="saleTypes" type="checkbox" :value="t.value" />
@@ -215,7 +215,7 @@ function onPhotoChange(e) {
                 </fieldset>
 
                 <fieldset v-if="showFillVolume">
-                    <legend>Сколько наливают?</legend>
+                    <legend>Сколько разрешают залить?</legend>
                     <div class="radio-grid">
                         <label v-for="v in FILL_VOLUMES" :key="v.value" class="radio-label">
                             <input v-model="fillVolume" type="radio" :value="v.value" />
@@ -225,11 +225,11 @@ function onPhotoChange(e) {
                 </fieldset>
 
                 <fieldset v-if="showCanisterPolicy">
-                    <legend>Канистра? <span class="fieldset-hint">необязательно</span></legend>
+                    <legend>Можно ли налить в канистру? <span class="fieldset-hint">если знаете</span></legend>
                     <div class="radio-grid">
                         <label class="radio-label">
                             <input v-model="canisterPolicy" type="radio" value="" />
-                            Не указано
+                            Не знаю
                         </label>
                         <label v-for="c in CANISTER_POLICIES" :key="c.value" class="radio-label">
                             <input v-model="canisterPolicy" type="radio" :value="c.value" />
@@ -239,7 +239,7 @@ function onPhotoChange(e) {
                 </fieldset>
 
                 <fieldset>
-                    <legend class="section-label">Очередь?</legend>
+                    <legend class="section-label">Большая ли очередь?</legend>
                     <div class="radio-grid">
                         <label v-for="q in QUEUE_SIZES" :key="q.value" class="radio-label">
                             <input v-model="queueSize" type="radio" :value="q.value" />
@@ -249,12 +249,12 @@ function onPhotoChange(e) {
                 </fieldset>
 
                 <label class="field">
-                    Комментарий (необязательно)
-                    <textarea v-model="comment" class="field-textarea" rows="2" maxlength="500" />
+                    Комментарий (по желанию)
+                    <textarea v-model="comment" class="field-textarea" rows="2" maxlength="500" placeholder="Например: дают только 95-й, очередь на въезде" />
                 </label>
 
                 <div class="field">
-                    <span class="section-label">Фото (необязательно)</span>
+                    <span class="section-label">Фото (по желанию)</span>
                     <label class="file-upload-dashed">
                         <span class="file-upload-dashed-icon">
                             <UiIcon name="camera" :size="22" color="#4A4845" />
@@ -277,7 +277,7 @@ function onPhotoChange(e) {
             <div class="modal-report-footer">
                 <button type="button" class="btn btn-accent btn-block" :disabled="submitting" @click="submit">
                     <UiIcon v-if="!submitting" name="check" :size="16" color="#0A0807" />
-                    {{ submitting ? 'Отправка…' : 'Отправить отчёт' }}
+                    {{ submitting ? 'Отправляем…' : 'Отправить' }}
                 </button>
             </div>
             </template>

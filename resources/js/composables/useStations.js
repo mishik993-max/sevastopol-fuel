@@ -11,7 +11,7 @@ export function useStations() {
         error.value = null;
         try {
             const res = await fetch(apiUrl(`/api/stations?fuel=${fuel}`));
-            if (!res.ok) throw new Error('Ошибка загрузки');
+            if (!res.ok) throw new Error('Не удалось загрузить заправки');
             const json = await res.json();
             stations.value = json.data;
         } catch (e) {
@@ -27,7 +27,7 @@ export function useStations() {
         try {
             const params = new URLSearchParams({ lat, lng, fuel, limit });
             const res = await fetch(apiUrl(`/api/stations/nearby?${params}`));
-            if (!res.ok) throw new Error('Ошибка загрузки');
+            if (!res.ok) throw new Error('Не удалось загрузить заправки');
             const json = await res.json();
             stations.value = json.data;
         } catch (e) {
@@ -39,7 +39,7 @@ export function useStations() {
 
     async function fetchStation(id, fuel = 'a95') {
         const res = await fetch(apiUrl(`/api/stations/${id}?fuel=${fuel}`));
-        if (!res.ok) throw new Error('АЗС не найдена');
+        if (!res.ok) throw new Error('Заправка не найдена');
         const json = await res.json();
         return json.data;
     }

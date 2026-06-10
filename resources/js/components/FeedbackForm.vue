@@ -13,8 +13,8 @@ const error = ref(null);
 const success = ref(false);
 
 const TYPES = [
-    { value: 'suggestion', label: 'Предложение по улучшению' },
-    { value: 'feedback', label: 'Обратная связь / проблема' },
+    { value: 'suggestion', label: 'Идея или предложение' },
+    { value: 'feedback', label: 'Что-то не работает' },
 ];
 
 async function submit() {
@@ -60,7 +60,7 @@ async function submit() {
                     </div>
                     <h2 class="report-success__title">Спасибо!</h2>
                     <p class="report-success__text">
-                        Сообщение получено. Мы читаем все предложения - они помогают улучшать сервис.
+                        Мы прочитаем ваше сообщение. Спасибо, что помогаете сделать приложение лучше!
                     </p>
                     <button type="button" class="btn btn-secondary btn-block" @click="emit('close')">Закрыть</button>
                 </div>
@@ -73,7 +73,7 @@ async function submit() {
                         <UiIcon name="message-square" :size="18" color="#E8B84B" />
                     </span>
                     <div class="modal-report-head-text">
-                        <h2>Обратная связь</h2>
+                        <h2>Напишите нам</h2>
                         <p>Идея, замечание или что-то не работает</p>
                     </div>
                     <button class="close-btn close-btn--square" type="button" @click="emit('close')">
@@ -105,13 +105,13 @@ async function submit() {
                     </label>
 
                     <label class="field">
-                        <span class="section-label">Контакт (необязательно)</span>
+                        <span class="section-label">Контакт (по желанию)</span>
                         <input
                             v-model="contact"
                             class="field-input"
                             type="text"
                             maxlength="120"
-                            placeholder="Telegram, email - если хотите ответ"
+                            placeholder="Telegram или e-mail, если хотите ответ"
                         />
                     </label>
 

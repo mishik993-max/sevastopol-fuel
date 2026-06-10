@@ -1,12 +1,10 @@
 <script setup>
 import { onMounted, ref } from 'vue';
-import { useAppSettings } from '../composables/useAppSettings';
 import { usePushNotifications } from '../composables/usePushNotifications';
 import { swRegistrationReady } from '../swRegister';
 import UiIcon from './UiIcon.vue';
 
 const { supported, permissionState, subscribe } = usePushNotifications();
-const { qrReminderLabel } = useAppSettings();
 const visible = ref(!localStorage.getItem('push_dismissed') && !localStorage.getItem('push_subscribed'));
 const blocked = ref(permissionState.value === 'denied');
 const loading = ref(false);
@@ -51,11 +49,11 @@ function dismiss() {
             <UiIcon name="bell" :size="16" color="#C8A840" />
         </span>
         <div class="push-text">
-            <span class="push-text-main">Уведомления: QR и «Мои АЗС»</span>
-            <span class="push-text-sub">{{ qrReminderLabel }}. ★ на заправке - push, когда появится топливо.</span>
+            <span class="push-text-main">Уведомления на телефон</span>
+            <span class="push-text-sub">Напомним про QR и сообщим, когда на вашей заправке (со звёздочкой) появится топливо.</span>
             <span v-if="error" class="push-error">{{ error }}</span>
-            <span v-else-if="!swReady && !loading" class="push-hint">Загрузка Service Worker…</span>
-            <span v-else-if="blocked" class="push-hint">Уведомления заблокированы в браузере</span>
+            <span v-else-if="!swReady && !loading" class="push-hint">Ещё секунду, идёт подготовка…</span>
+            <span v-else-if="blocked" class="push-hint">Уведомления отключены в настройках браузера</span>
         </div>
         <div class="push-actions">
             <button

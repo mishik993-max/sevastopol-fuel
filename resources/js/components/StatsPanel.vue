@@ -75,7 +75,7 @@ const markerColors = {
                 <div class="modal-report-head-text">
                     <h2>Статистика</h2>
                     <p v-if="stats">{{ stats.stations_total }} АЗС · {{ stats.fuel_label }}</p>
-                    <p v-else>Сводка по карте</p>
+                    <p v-else>Общая картина по городу</p>
                 </div>
                 <button class="close-btn close-btn--square" type="button" @click="emit('close')">
                     <UiIcon name="x" :size="14" color="#7A7570" />
@@ -88,14 +88,14 @@ const markerColors = {
 
                 <template v-else-if="stats">
                     <p class="stats-summary">
-                        {{ stats.reports_24h }} отчётов за 24 ч
+                        {{ stats.reports_24h }} сообщений за сутки
                         <span v-if="stats.pending_corrections">
                             · {{ stats.pending_corrections }} исправлений ждут подтверждения
                         </span>
                     </p>
 
                     <section class="stats-block">
-                        <h3 class="section-label">Статус · {{ stats.fuel_label }}</h3>
+                        <h3 class="section-label">Топливо {{ stats.fuel_label }}</h3>
                         <div class="stats-grid">
                             <div
                                 v-for="(count, key) in stats.status_counts"
@@ -111,7 +111,7 @@ const markerColors = {
                     </section>
 
                     <section class="stats-block">
-                        <h3 class="section-label">Маркеры на карте</h3>
+                        <h3 class="section-label">Цвета на карте</h3>
                         <div class="stats-grid">
                             <div
                                 v-for="(count, key) in stats.marker_counts"
@@ -137,13 +137,13 @@ const markerColors = {
                     </section>
 
                     <section class="stats-block">
-                        <h3 class="section-label">Все виды топлива</h3>
+                        <h3 class="section-label">Всё топливо</h3>
                         <div v-for="f in stats.fuels_overview" :key="f.fuel_type" class="stats-fuel-row">
                             <span class="stats-fuel-label">{{ f.label }}</span>
                             <span class="stats-fuel-counts">
-                                <span class="stats-fuel-count stats-fuel-count--ok">{{ f.counts.available }} е</span>
+                                <span class="stats-fuel-count stats-fuel-count--ok">{{ f.counts.available }} есть</span>
                                 <span class="stats-fuel-count stats-fuel-count--no">{{ f.counts.none }} нет</span>
-                                <span class="stats-fuel-count stats-fuel-count--unk">{{ f.counts.unknown }} ?</span>
+                                <span class="stats-fuel-count stats-fuel-count--unk">{{ f.counts.unknown }} н/д</span>
                             </span>
                         </div>
                     </section>

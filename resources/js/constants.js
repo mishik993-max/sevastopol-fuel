@@ -8,16 +8,17 @@ export const FUEL_TYPES = [
 ];
 
 export const FUEL_STATUSES = [
-    { value: 'available', label: 'Есть' },
-    { value: 'low', label: 'Мало' },
-    { value: 'none', label: 'Нет' },
+    { value: 'available', label: 'Есть в наличии' },
+    { value: 'low', label: 'Осталось мало' },
+    { value: 'none', label: 'Закончилось' },
 ];
 
 export const QUEUE_SIZES = [
-    { value: 'none', label: 'Нет' },
-    { value: 'up_to_10', label: 'До 10' },
-    { value: '10_30', label: '10–30' },
-    { value: '30_plus', label: '30+' },
+    { value: 'none', label: 'Очереди нет' },
+    { value: 'up_to_10', label: 'До 10 машин' },
+    { value: '10_30', label: '10-30 машин' },
+    { value: '30_plus', label: 'Больше 30 машин' },
+    { value: 'unknown', label: 'Не знаю' },
 ];
 
 export const SALE_TYPES = [
@@ -100,6 +101,7 @@ export const PHOTO_ACCEPT_TYPES = ['image/jpeg', 'image/png'];
 
 export const QUEUE_HEAT_WEIGHTS = {
     none: 0,
+    unknown: 0,
     up_to_10: 0.35,
     '10_30': 0.65,
     '30_plus': 1,
@@ -107,6 +109,7 @@ export const QUEUE_HEAT_WEIGHTS = {
 
 export const QUEUE_MARKER_COLORS = {
     none: '#6b7280',
+    unknown: '#6b7280',
     up_to_10: '#eab308',
     '10_30': '#f97316',
     '30_plus': '#ef4444',

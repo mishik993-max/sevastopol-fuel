@@ -64,10 +64,10 @@ async function requestAccess() {
                             <UiIcon name="map-pin" :size="18" color="#E8B84B" />
                         </div>
                         <div class="geo-gate-card-copy">
-                            <p class="geo-gate-card-title">Нужен доступ к геолокации</p>
+                            <p class="geo-gate-card-title">Разрешите доступ к местоположению</p>
                             <p class="geo-gate-card-text">
-                                Показываем только АЗС Севастополя и сортируем их по расстоянию от вас.<br>
-                                Это интерактивная карта - данные на ней актуализируют только пользователи.
+                                Так мы покажем заправки рядом с вами и подскажем, где есть нужное топливо.<br>
+                                Информацию о топливе пишут сами водители Севастополя.
                             </p>
                         </div>
                     </div>
@@ -84,16 +84,16 @@ async function requestAccess() {
                 </div>
 
                 <div v-if="status === 'outside'" class="geo-gate-alert geo-gate-alert--error">
-                    Похоже, вы вне Севастополя. Сервис работает только в регионе.
+                    Похоже, вы не в Севастополе. Приложение работает только для этого города.
                 </div>
                 <div v-else-if="status === 'denied' && error" class="geo-gate-alert geo-gate-alert--error">
                     <p>{{ error }}</p>
                     <p class="geo-gate-alert-hint">
-                        Chrome: замок слева от адреса → «Местоположение» → «Разрешить», затем обновите страницу.
+                        Нажмите на значок замка слева от адреса сайта, выберите «Местоположение» и «Разрешить», затем обновите страницу.
                     </p>
                 </div>
                 <div v-else-if="status === 'insecure'" class="geo-gate-alert geo-gate-alert--error">
-                    Геолокация работает только по HTTPS. Откройте сайт по защищённому адресу.
+                    Чтобы определить ваше местоположение, откройте сайт по защищённому адресу (он начинается с https).
                 </div>
 
                 <button
@@ -105,10 +105,10 @@ async function requestAccess() {
                     @click="requestAccess"
                 >
                     <UiIcon name="map-pin" :size="16" color="#0A0807" />
-                    {{ loading ? 'Определяем местоположение…' : 'Разрешить геолокацию' }}
+                    {{ loading ? 'Определяем, где вы…' : 'Разрешить и продолжить' }}
                 </button>
 
-                <p class="geo-gate-hint">Можно изменить в любой момент в настройках браузера</p>
+                <p class="geo-gate-hint">Это можно отключить в любой момент в настройках браузера</p>
             </div>
         </div>
 
