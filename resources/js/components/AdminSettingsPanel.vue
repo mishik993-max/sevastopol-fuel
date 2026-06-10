@@ -22,7 +22,7 @@ const saving = ref(false);
 const loading = ref(false);
 
 const emptyForm = () => ({
-    geo_bbox: { south: 44.48, west: 33.38, north: 44.72, east: 33.72 },
+    geo_bbox: { south: 44.48, west: 33.38, north: 44.72, east: 33.78 },
     map_center: { lat: 44.605, lng: 33.522 },
     network_priority_text: '',
     freshness_fresh_minutes: 15,

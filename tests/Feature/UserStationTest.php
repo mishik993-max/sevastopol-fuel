@@ -64,4 +64,17 @@ class UserStationTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['latitude']);
     }
+
+    public function test_station_in_verkhnesadovo_bbox_is_accepted(): void
+    {
+        $this->postJson('/api/stations?fuel=a95', $this->validPayload([
+            'name' => 'АЗС А-291',
+            'address' => 'А-291, 259-й километр, 3',
+            'latitude' => 44.686973,
+            'longitude' => 33.758149,
+        ]))
+            ->assertCreated()
+            ->assertJsonPath('data.latitude', 44.686973)
+            ->assertJsonPath('data.longitude', 33.758149);
+    }
 }

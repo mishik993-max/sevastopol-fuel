@@ -9,7 +9,7 @@ return [
         'south' => 44.48,
         'west' => 33.38,
         'north' => 44.72,
-        'east' => 33.72,
+        'east' => 33.78, // Верхнесадово, трасса А-291 (восточнее 33.72)
     ],
 
     'overpass_url' => env('OVERPASS_URL', 'https://overpass-api.de/api/interpreter'),

@@ -9,7 +9,7 @@ return [
             'south' => 44.48,
             'west' => 33.38,
             'north' => 44.72,
-            'east' => 33.72,
+            'east' => 33.78,
         ],
         'map_center' => [
             'lat' => 44.605,

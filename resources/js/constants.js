@@ -60,7 +60,7 @@ export const SEVASTOPOL_BBOX = {
     south: 44.48,
     west: 33.38,
     north: 44.72,
-    east: 33.72,
+    east: 33.78,
 };
 
 export const SEVASTOPOL_CENTER = [44.605, 33.522];
