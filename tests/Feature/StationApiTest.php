@@ -44,10 +44,13 @@ class StationApiTest extends TestCase
             'statuses' => ['available', 'low'],
             'sale_types' => ['voucher', 'qr'],
             'fill_volume' => 'liters_20',
+            'canister_policy' => 'allowed',
         ])->assertCreated()
             ->assertJsonPath('data.sale_types', ['voucher', 'qr'])
             ->assertJsonPath('data.status_labels', ['Есть', 'Мало'])
-            ->assertJsonPath('data.fill_volume_label', '20 литров');
+            ->assertJsonPath('data.fill_volume_label', '20 литров')
+            ->assertJsonPath('data.canister_policy', 'allowed')
+            ->assertJsonPath('data.canister_policy_label', 'Можно в канистру');
 
         $this->postJson("/api/stations/{$station->id}/confirm", [
             'fuel_type' => 'a95',

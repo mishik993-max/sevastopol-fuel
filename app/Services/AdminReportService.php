@@ -66,6 +66,7 @@ class AdminReportService
                 : $report->status->label(),
             'queue_label' => $report->queue_size?->label(),
             'fill_volume_label' => $report->fill_volume?->label(),
+            'canister_policy_label' => $report->canister_policy?->label(),
             'sale_type_labels' => SaleType::labelsFor($report->sale_types),
             'comment' => $report->comment,
             'photo_url' => $report->photoUrl(),

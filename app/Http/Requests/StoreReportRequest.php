@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\CanisterPolicy;
 use App\Enums\FillVolume;
 use App\Enums\FuelStatus;
 use App\Enums\FuelType;
@@ -33,6 +34,7 @@ class StoreReportRequest extends FormRequest
             'sale_types' => ['required', 'array', 'min:1'],
             'sale_types.*' => ['required', 'string', Rule::enum(SaleType::class)],
             'fill_volume' => ['nullable', Rule::enum(FillVolume::class)],
+            'canister_policy' => ['nullable', Rule::enum(CanisterPolicy::class)],
             'comment' => ['nullable', 'string', 'max:500'],
             'photo' => [
                 'nullable',

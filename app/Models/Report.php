@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CanisterPolicy;
 use App\Enums\FillVolume;
 use App\Enums\FuelStatus;
 use App\Enums\FuelType;
@@ -23,6 +24,7 @@ class Report extends Model
         'queue_size',
         'sale_types',
         'fill_volume',
+        'canister_policy',
         'comment',
         'photo_path',
         'is_confirmation',
@@ -41,6 +43,7 @@ class Report extends Model
             'queue_size' => QueueSize::class,
             'sale_types' => 'array',
             'fill_volume' => FillVolume::class,
+            'canister_policy' => CanisterPolicy::class,
             'is_confirmation' => 'boolean',
             'is_hidden' => 'boolean',
             'created_at' => 'datetime',

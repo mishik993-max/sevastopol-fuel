@@ -10,6 +10,7 @@ const props = defineProps({
     station: { type: Object, required: true },
     selectedFuel: { type: String, default: 'a95' },
     selectedSaleType: { type: String, default: null },
+    canisterOnly: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
@@ -21,6 +22,7 @@ const emit = defineEmits([
     'confirm-correction',
     'select-fuel',
     'select-sale-type',
+    'select-canister-only',
 ]);
 
 const lightboxSrc = ref(null);
@@ -72,6 +74,7 @@ const fuelReports = computed(() => {
         status_label: activeFuel.value.status_label,
         sale_type_labels: activeFuel.value.sale_type_labels ?? [],
         fill_volume_label: activeFuel.value.fill_volume_label,
+        canister_policy_label: activeFuel.value.canister_policy_label,
         queue_label: activeFuel.value.queue_label,
         comment: activeFuel.value.comment,
         photo_url: activeFuel.value.photo_url,
@@ -139,6 +142,10 @@ function reportMeta(item) {
 
     if (item.fill_volume_label) {
         parts.push(item.fill_volume_label);
+    }
+
+    if (item.canister_policy_label) {
+        parts.push(item.canister_policy_label);
     }
 
     return parts;
@@ -244,7 +251,7 @@ function onToggleFavorite() {
                     </div>
                 </div>
                 <div
-                    v-if="activeFuel.sale_type_labels?.length || activeFuel.fill_volume_label"
+                    v-if="activeFuel.sale_type_labels?.length || activeFuel.fill_volume_label || activeFuel.canister_policy_label"
                     class="status-card-pills"
                 >
                     <span
@@ -260,6 +267,16 @@ function onToggleFavorite() {
                     </span>
                     <span v-if="activeFuel.fill_volume_label" class="status-pill status-pill--volume">
                         {{ activeFuel.fill_volume_label }}
+                    </span>
+                    <span
+                        v-if="activeFuel.canister_policy_label"
+                        class="status-pill"
+                        :class="{
+                            'status-pill--canister-allowed': activeFuel.canister_policy === 'allowed',
+                            'status-pill--canister-forbidden': activeFuel.canister_policy === 'forbidden',
+                        }"
+                    >
+                        {{ activeFuel.canister_policy_label }}
                     </span>
                 </div>
             </section>
@@ -306,6 +323,14 @@ function onToggleFavorite() {
                         @click="emit('select-sale-type', 'qr')"
                     >
                         QR
+                    </button>
+                    <button
+                        type="button"
+                        class="sheet-sale-btn sheet-sale-btn--canister"
+                        :class="{ active: canisterOnly }"
+                        @click="emit('select-canister-only', !canisterOnly)"
+                    >
+                        Канистра
                     </button>
                 </div>
             </section>

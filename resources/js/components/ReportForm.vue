@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { FUEL_TYPES, FUEL_STATUSES, QUEUE_SIZES, SALE_TYPES, FILL_VOLUMES, PHOTO_MAX_BYTES, PHOTO_ACCEPT_TYPES } from '../constants';
+import { FUEL_TYPES, FUEL_STATUSES, QUEUE_SIZES, SALE_TYPES, FILL_VOLUMES, CANISTER_POLICIES, PHOTO_MAX_BYTES, PHOTO_ACCEPT_TYPES } from '../constants';
 import { apiUrl, apiErrorMessage, parseApiResponse } from '../api';
 import UiIcon from './UiIcon.vue';
 
@@ -16,6 +16,7 @@ const statuses = ref(['available']);
 const queueSize = ref('none');
 const saleTypes = ref(['regular']);
 const fillVolume = ref('liters_20');
+const canisterPolicy = ref('');
 const comment = ref('');
 const photo = ref(null);
 const photoName = ref('');
@@ -33,6 +34,8 @@ const showFillVolume = computed(() => (
     !hasNoneStatus.value
     && (statuses.value.includes('available') || statuses.value.includes('low'))
 ));
+
+const showCanisterPolicy = computed(() => showFillVolume.value);
 
 function onStatusChange(value, event) {
     const checked = event.target.checked;
@@ -84,6 +87,9 @@ async function submit() {
     }
     if (showFillVolume.value) {
         formData.append('fill_volume', fillVolume.value);
+    }
+    if (showCanisterPolicy.value && canisterPolicy.value) {
+        formData.append('canister_policy', canisterPolicy.value);
     }
     if (comment.value) formData.append('comment', comment.value);
     if (photo.value) formData.append('photo', photo.value);
@@ -214,6 +220,20 @@ function onPhotoChange(e) {
                         <label v-for="v in FILL_VOLUMES" :key="v.value" class="radio-label">
                             <input v-model="fillVolume" type="radio" :value="v.value" />
                             {{ v.label }}
+                        </label>
+                    </div>
+                </fieldset>
+
+                <fieldset v-if="showCanisterPolicy">
+                    <legend>Канистра? <span class="fieldset-hint">необязательно</span></legend>
+                    <div class="radio-grid">
+                        <label class="radio-label">
+                            <input v-model="canisterPolicy" type="radio" value="" />
+                            Не указано
+                        </label>
+                        <label v-for="c in CANISTER_POLICIES" :key="c.value" class="radio-label">
+                            <input v-model="canisterPolicy" type="radio" :value="c.value" />
+                            {{ c.label }}
                         </label>
                     </div>
                 </fieldset>

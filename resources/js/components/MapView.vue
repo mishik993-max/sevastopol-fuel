@@ -20,12 +20,15 @@ const props = defineProps({
 
 const emit = defineEmits(['select', 'pick']);
 
+const mapRootEl = ref(null);
 const mapEl = ref(null);
 const mapError = ref(null);
 const mapLoading = ref(true);
 
 let ymaps = null;
 let map = null;
+let resizeObserver = null;
+let resizeScheduled = false;
 const stationPlacemarks = [];
 let userPlacemark = null;
 let pickPlacemark = null;
@@ -45,7 +48,62 @@ let mapReady = false;
 
 const { load } = useYandexMaps();
 
+function scheduleInvalidateSize() {
+    if (resizeScheduled) {
+        return;
+    }
+
+    resizeScheduled = true;
+    requestAnimationFrame(() => {
+        resizeScheduled = false;
+        invalidateSize();
+    });
+}
+
+function onOrientationChange() {
+    scheduleInvalidateSize();
+}
+
+function onVisualViewportResize() {
+    scheduleInvalidateSize();
+}
+
+function onVisibilityChange() {
+    if (document.visibilityState === 'visible') {
+        scheduleInvalidateSize();
+    }
+}
+
+function setupResizeObserver() {
+    const el = mapRootEl.value;
+    if (!el || typeof ResizeObserver === 'undefined') {
+        return;
+    }
+
+    resizeObserver = new ResizeObserver(() => {
+        if (mapReady) {
+            scheduleInvalidateSize();
+        }
+    });
+    resizeObserver.observe(el);
+}
+
+function setupViewportListeners() {
+    window.addEventListener('orientationchange', onOrientationChange);
+    window.visualViewport?.addEventListener('resize', onVisualViewportResize);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+}
+
+function teardownViewportListeners() {
+    window.removeEventListener('orientationchange', onOrientationChange);
+    window.visualViewport?.removeEventListener('resize', onVisualViewportResize);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+}
+
 onMounted(async () => {
+    setupResizeObserver();
+    setupViewportListeners();
+
     try {
         ymaps = await load();
 
@@ -57,21 +115,26 @@ onMounted(async () => {
             suppressMapOpenBlock: false,
         });
 
+        mapLoading.value = false;
         updateMapMargins();
         renderMapLayers();
         mapReady = true;
         setupMapClick(props.pickMode);
         tryInitialCenter();
         await nextTick();
-        requestAnimationFrame(() => invalidateSize());
+        scheduleInvalidateSize();
+        setTimeout(scheduleInvalidateSize, 150);
+        setTimeout(scheduleInvalidateSize, 500);
     } catch (e) {
         mapError.value = e.message;
-    } finally {
         mapLoading.value = false;
     }
 });
 
 onUnmounted(() => {
+    resizeObserver?.disconnect();
+    resizeObserver = null;
+    teardownViewportListeners();
     clearMapMargins();
     clearQueueCircles();
     clearSelectedPulse();
@@ -243,7 +306,11 @@ function invalidateSize() {
         return;
     }
 
-    map.container.fitToViewport();
+    try {
+        map.container.fitToViewport();
+    } catch {
+        // ignore resize errors on destroyed/hidden map
+    }
 }
 
 function stationCoords(station) {
@@ -420,7 +487,7 @@ defineExpose({ invalidateSize });
 </script>
 
 <template>
-    <div class="map-wrap-inner">
+    <div ref="mapRootEl" class="map-wrap-inner">
         <div v-if="mapLoading" class="map-status map-status--loading">Загрузка карты…</div>
         <div v-if="mapError" class="map-status map-error">
             <p>{{ mapError }}</p>
@@ -444,12 +511,6 @@ defineExpose({ invalidateSize });
 </template>
 
 <style scoped>
-.map-wrap-inner {
-    width: 100%;
-    height: 100%;
-    position: relative;
-}
-
 .map {
     position: absolute;
     inset: 0;
@@ -472,7 +533,7 @@ defineExpose({ invalidateSize });
 }
 
 .map-status--loading {
-    background: var(--bg);
+    background: rgba(10, 8, 7, 0.65);
 }
 
 .map-error {

@@ -119,6 +119,10 @@ function metaLine(item) {
         parts.push(item.fill_volume_label);
     }
 
+    if (item.canister_policy_label) {
+        parts.push(item.canister_policy_label);
+    }
+
     if (item.queue_label && item.queue_label !== 'Нет') {
         parts.push(`Очередь: ${item.queue_label}`);
     }

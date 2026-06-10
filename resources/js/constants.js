@@ -31,6 +31,11 @@ export const FILL_VOLUMES = [
     { value: 'full_tank', label: 'Полный бак' },
 ];
 
+export const CANISTER_POLICIES = [
+    { value: 'allowed', label: 'Можно в канистру' },
+    { value: 'forbidden', label: 'Нельзя в канистру' },
+];
+
 /** Порядок сетей в фильтре (остальные - по количеству АЗС) */
 export const NETWORK_PRIORITY = [
     'Атан',

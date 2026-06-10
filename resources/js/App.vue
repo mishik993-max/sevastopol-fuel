@@ -53,6 +53,7 @@ const pendingDeepLinkStationId = ref(null);
 const selectedFuel = ref('a95');
 const selectedNetwork = ref(null);
 const selectedSaleType = ref(null);
+const canisterOnly = ref(false);
 const favoritesOnly = ref(false);
 const filtersOpen = ref(false);
 const cookieConsentGranted = ref(readCookieConsent());
@@ -136,6 +137,15 @@ watch(viewMode, async (mode) => {
     mapViewRef.value?.invalidateSize?.();
 });
 
+watch(filtersOpen, async () => {
+    if (viewMode.value !== 'map') {
+        return;
+    }
+
+    await nextTick();
+    requestAnimationFrame(() => mapViewRef.value?.invalidateSize?.());
+});
+
 onUnmounted(() => {
     window.removeEventListener(PUSH_READY_EVENT, onPushReady);
     teardownSheetObserver();
@@ -174,6 +184,14 @@ const filteredStations = computed(() => {
             const fuel = s.fuels?.find((f) => f.fuel_type === selectedFuel.value) ?? s.fuels?.[0];
 
             return fuel?.sale_types?.includes(selectedSaleType.value);
+        });
+    }
+
+    if (canisterOnly.value) {
+        list = list.filter((s) => {
+            const fuel = s.fuels?.find((f) => f.fuel_type === selectedFuel.value) ?? s.fuels?.[0];
+
+            return fuel?.canister_policy === 'allowed';
         });
     }
 
@@ -315,7 +333,7 @@ function onPushReady() {
     syncPushWatches();
 }
 
-watch([selectedNetwork, selectedSaleType], () => {
+watch([selectedNetwork, selectedSaleType, canisterOnly], () => {
     if (
         selectedStation.value
         && !filteredStations.value.some((s) => s.id === selectedStation.value.id)
@@ -686,6 +704,14 @@ async function onStationClosed() {
                         QR
                     </button>
                     <button
+                        type="button"
+                        class="network-btn network-btn--compact sale-btn--canister"
+                        :class="{ active: canisterOnly }"
+                        @click="canisterOnly = !canisterOnly"
+                    >
+                        Канистра
+                    </button>
+                    <button
                         v-if="viewMode === 'map'"
                         type="button"
                         class="network-btn network-btn--compact"
@@ -832,6 +858,7 @@ async function onStationClosed() {
                 :station="selectedStation"
                 :selected-fuel="selectedFuel"
                 :selected-sale-type="selectedSaleType"
+                :canister-only="canisterOnly"
                 @report="showReport = true"
                 @confirm="showConfirm = true"
                 @closed="onStationClosed"
@@ -839,6 +866,7 @@ async function onStationClosed() {
                 @confirm-correction="onConfirmCorrection"
                 @select-fuel="selectedFuel = $event"
                 @select-sale-type="selectedSaleType = $event"
+                @select-canister-only="canisterOnly = $event"
                 @close="selectedStation = null"
             />
         </div>
