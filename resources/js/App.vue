@@ -262,6 +262,7 @@ function onGeoGateGranted() {
     saveGeoGate();
     geoAccessGranted.value = true;
     initApp();
+    syncPushWatches();
 
     if (!localStorage.getItem('onboarding_done')) {
         showOnboarding.value = true;

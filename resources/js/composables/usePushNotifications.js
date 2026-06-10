@@ -107,9 +107,7 @@ export function usePushNotifications() {
             const subscription = await registration.pushManager.getSubscription();
 
             if (!subscription) {
-                if (localStorage.getItem('push_subscribed')) {
-                    localStorage.removeItem('push_subscribed');
-                }
+                localStorage.removeItem('push_subscribed');
                 subscribed.value = false;
 
                 return;
@@ -130,6 +128,9 @@ export function usePushNotifications() {
                 subscribed.value = true;
                 localStorage.setItem('push_subscribed', '1');
                 notifyPushReady();
+            } else {
+                localStorage.removeItem('push_subscribed');
+                subscribed.value = false;
             }
         } catch {
             // ignore background sync errors
