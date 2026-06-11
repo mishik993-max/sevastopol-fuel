@@ -45,6 +45,7 @@ Route::post('/admin/login', [AdminController::class, 'login']);
 Route::middleware(['admin', 'throttle:admin-api'])->prefix('admin')->group(function () {
     Route::get('/summary', [AdminController::class, 'summary']);
     Route::get('/analytics', [AdminController::class, 'analytics']);
+    Route::get('/system', [AdminController::class, 'system']);
     Route::get('/corrections', [AdminController::class, 'corrections']);
     Route::post('/corrections/{correction}/apply', [AdminController::class, 'applyCorrection']);
     Route::post('/corrections/{correction}/reject', [AdminController::class, 'rejectCorrection']);

@@ -35,7 +35,7 @@ class AdminAnalyticsTest extends TestCase
         ]);
     }
 
-    public function test_admin_analytics_returns_visitors_and_system_metrics(): void
+    public function test_admin_analytics_returns_visitors_only(): void
     {
         $today = Carbon::now(config('app.timezone'))->toDateString();
 
@@ -46,7 +46,7 @@ class AdminAnalyticsTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->withHeader('X-Admin-Token', 'test-admin-secret')
+        $response = $this->withHeader('X-Admin-Token', 'test-admin-secret')
             ->getJson('/api/admin/analytics')
             ->assertOk()
             ->assertJsonPath('data.visitors_today', 5)
@@ -55,12 +55,28 @@ class AdminAnalyticsTest extends TestCase
                     'visitors_today',
                     'visitors_yesterday',
                     'visitors_daily',
-                    'system' => [
-                        'memory_used_mb',
-                        'memory_peak_mb',
-                        'queue_pending',
-                        'cache_driver',
-                    ],
+                ],
+            ]);
+
+        $this->assertArrayNotHasKey('system', $response->json('data'));
+    }
+
+    public function test_admin_system_returns_server_metrics(): void
+    {
+        $this->withHeader('X-Admin-Token', 'test-admin-secret')
+            ->getJson('/api/admin/system')
+            ->assertOk()
+            ->assertJsonStructure([
+                'data' => [
+                    'memory_used_mb',
+                    'memory_peak_mb',
+                    'queue_pending',
+                    'cache_driver',
+                    'cache_driver_label',
+                    'queue_driver',
+                    'queue_driver_label',
+                    'database_connection',
+                    'database_connection_label',
                 ],
             ]);
     }

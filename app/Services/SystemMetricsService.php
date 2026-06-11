@@ -21,7 +21,11 @@ class SystemMetricsService
             'queue_pending' => $this->safeCount('jobs'),
             'queue_failed' => $this->safeCount('failed_jobs'),
             'cache_driver' => config('cache.default'),
+            'cache_driver_label' => $this->driverLabel((string) config('cache.default'), 'cache'),
             'queue_driver' => config('queue.default'),
+            'queue_driver_label' => $this->driverLabel((string) config('queue.default'), 'queue'),
+            'database_connection' => config('database.default'),
+            'database_connection_label' => $this->databaseLabel((string) config('database.default')),
             'disk_free_gb' => $this->diskFreeGb(),
             'disk_total_gb' => $this->diskTotalGb(),
             'php_version' => PHP_VERSION,
@@ -68,5 +72,33 @@ class SystemMetricsService
         }
 
         return round($total / 1073741824, 2);
+    }
+
+    private function driverLabel(string $driver, string $type): string
+    {
+        return match ($driver) {
+            'database' => $type === 'cache'
+                ? 'Таблица cache в БД'
+                : 'Таблица jobs в БД',
+            'redis' => 'Redis',
+            'file' => 'Файлы',
+            'array' => 'В памяти (array)',
+            'sync' => 'Без очереди (sync)',
+            'beanstalkd' => 'Beanstalkd',
+            'sqs' => 'Amazon SQS',
+            default => $driver,
+        };
+    }
+
+    private function databaseLabel(string $connection): string
+    {
+        $driver = config("database.connections.{$connection}.driver", $connection);
+
+        return match ($driver) {
+            'mysql', 'mariadb' => 'MySQL / MariaDB',
+            'pgsql' => 'PostgreSQL',
+            'sqlite' => 'SQLite',
+            default => $driver,
+        };
     }
 }

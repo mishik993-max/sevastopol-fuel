@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import AdminAnalyticsPanel from './AdminAnalyticsPanel.vue';
+import AdminSystemPanel from './AdminSystemPanel.vue';
 import AdminSettingsPanel from './AdminSettingsPanel.vue';
 import AdminFaqPanel from './AdminFaqPanel.vue';
 import AdminOsmImportPanel from './AdminOsmImportPanel.vue';
@@ -19,7 +20,8 @@ const PAGE_META = {
     reports: { title: 'Отчёты', desc: 'Модерация пользовательских отчётов о наличии топлива' },
     osm: { title: 'Импорт OSM', desc: 'Загрузка и синхронизация заправок из OpenStreetMap' },
     push: { title: 'Push-уведомления', desc: 'Рассылка срочных сообщений подписчикам' },
-    analytics: { title: 'Аналитика', desc: 'Посещаемость и состояние сервера' },
+    analytics: { title: 'Посетители', desc: 'Уникальные заходы на сайт по дням' },
+    system: { title: 'Система', desc: 'Память, диск, очередь и настройки сервера' },
     faq: { title: 'FAQ', desc: 'Вопросы и ответы в разделе помощи' },
     settings: { title: 'Настройки', desc: 'Параметры приложения и напоминания' },
 };
@@ -72,7 +74,8 @@ const navGroups = computed(() => [
     {
         label: 'Система',
         items: [
-            { id: 'analytics', label: 'Аналитика', icon: 'activity' },
+            { id: 'analytics', label: 'Посетители', icon: 'activity' },
+            { id: 'system', label: 'Система', icon: 'gauge' },
             { id: 'settings', label: 'Настройки', icon: 'settings' },
         ],
     },
@@ -367,19 +370,19 @@ onMounted(() => {
 
                     <section v-if="tab === 'overview'" class="admin-section">
                         <div class="admin-stats-grid">
-                            <button type="button" class="admin-stat-card admin-stat-card--warn" @click="selectTab('corrections')">
+                            <button type="button" class="admin-stat-card" @click="selectTab('corrections')">
                                 <span class="admin-stat-value">{{ summary.pending_corrections }}</span>
                                 <span class="admin-stat-label">Ожидают исправления</span>
                             </button>
-                            <button type="button" class="admin-stat-card admin-stat-card--gold" @click="selectTab('feedback')">
+                            <button type="button" class="admin-stat-card" @click="selectTab('feedback')">
                                 <span class="admin-stat-value">{{ summary.new_feedback }}</span>
                                 <span class="admin-stat-label">Новых сообщений</span>
                             </button>
-                            <button type="button" class="admin-stat-card admin-stat-card--blue" @click="selectTab('reports')">
+                            <button type="button" class="admin-stat-card" @click="selectTab('reports')">
                                 <span class="admin-stat-value">{{ summary.visible_reports }}</span>
                                 <span class="admin-stat-label">Видимых отчётов</span>
                             </button>
-                            <button type="button" class="admin-stat-card admin-stat-card--green" @click="selectTab('analytics')">
+                            <button type="button" class="admin-stat-card" @click="selectTab('analytics')">
                                 <span class="admin-stat-value">{{ summary.visitors_today }}</span>
                                 <span class="admin-stat-label">Посетителей сегодня</span>
                             </button>
@@ -393,6 +396,12 @@ onMounted(() => {
 
                     <AdminAnalyticsPanel
                         v-if="tab === 'analytics'"
+                        :auth-headers="authHeaders"
+                        @error="error = $event"
+                    />
+
+                    <AdminSystemPanel
+                        v-if="tab === 'system'"
                         :auth-headers="authHeaders"
                         @error="error = $event"
                     />

@@ -100,8 +100,14 @@ class AdminController extends Controller
                 'visitors_today' => $visitors['today'],
                 'visitors_yesterday' => $visitors['yesterday'],
                 'visitors_daily' => $this->visitorStats->dailyBreakdown(30),
-                'system' => $this->systemMetrics->snapshot(),
             ],
+        ]);
+    }
+
+    public function system(): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->systemMetrics->snapshot(),
         ]);
     }
 
