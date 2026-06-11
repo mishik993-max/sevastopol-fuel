@@ -658,12 +658,12 @@ defineExpose({ invalidateSize });
 }
 
 .map-status--loading {
-    background: rgba(10, 8, 7, 0.65);
+    background: var(--map-status-loading-bg);
 }
 
 .map-error {
     pointer-events: auto;
-    background: rgba(10, 8, 7, 0.94);
+    background: var(--map-status-error-bg);
     color: #fca5a5;
 }
 
@@ -715,7 +715,7 @@ defineExpose({ invalidateSize });
     gap: 4px;
     padding: 8px 10px;
     border-radius: 12px;
-    background: rgba(20, 16, 14, 0.88);
+    background: var(--map-legend-bg);
     border: 1px solid var(--border);
     font-size: 0.72rem;
     color: var(--muted);

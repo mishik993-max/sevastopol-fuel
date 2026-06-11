@@ -6,6 +6,8 @@ import AdminOsmImportPanel from './AdminOsmImportPanel.vue';
 import AdminPushPanel from './AdminPushPanel.vue';
 import AdminReportsPanel from './AdminReportsPanel.vue';
 import { apiUrl } from '../api';
+import { useTheme } from '../composables/useTheme';
+import UiIcon from './UiIcon.vue';
 
 const STORAGE_KEY = 'admin_token';
 
@@ -26,6 +28,8 @@ const error = ref(null);
 const loginError = ref(null);
 const saveNotice = ref(null);
 const noteEdits = ref({});
+
+const { isDark, toggleTheme } = useTheme();
 
 function token() {
     return sessionStorage.getItem(STORAGE_KEY) || '';
@@ -208,6 +212,14 @@ onMounted(() => {
                 <span v-if="loggedIn" class="admin-topbar-sub">Топливо Севастополь</span>
             </div>
             <div class="admin-topbar-right">
+                <button
+                    type="button"
+                    class="topbar-icon-btn topbar-icon-btn--theme"
+                    :title="isDark ? 'Светлая тема' : 'Тёмная тема'"
+                    @click="toggleTheme"
+                >
+                    <UiIcon :name="isDark ? 'sun' : 'moon'" :size="16" color="currentColor" />
+                </button>
                 <a href="/" class="admin-back">← На карту</a>
                 <button v-if="loggedIn" type="button" class="btn btn-ghost btn-sm" @click="logout">
                     Выйти

@@ -13,6 +13,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="theme-color" content="#0a0807">
+    <script>
+        (function () {
+            var key = 'theme';
+            var theme = localStorage.getItem(key);
+            if (theme !== 'light' && theme !== 'dark') {
+                theme = 'dark';
+            }
+            document.documentElement.dataset.theme = theme;
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) {
+                meta.setAttribute('content', theme === 'light' ? '#f4f1eb' : '#0a0807');
+            }
+        })();
+    </script>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">

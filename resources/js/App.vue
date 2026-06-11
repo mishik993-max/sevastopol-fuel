@@ -31,6 +31,7 @@ import { useShare } from './composables/useShare';
 import { useFavoriteStations } from './composables/useFavoriteStations';
 import { syncFavoritePushWatches, PUSH_READY_EVENT } from './composables/useFavoritePushWatches';
 import { usePushNotifications } from './composables/usePushNotifications';
+import { useTheme } from './composables/useTheme';
 
 const { stations, loading, error, fetchStations, fetchNearby, fetchStation } = useStations();
 const { position, locate, loading: geoLoading, resolved: geoResolved, error: geoError } = useGeolocation();
@@ -48,6 +49,7 @@ const { networkPriority, mapCenter } = useAppSettings();
 const { canShare, share } = useShare();
 const { favoriteIds, count: favoriteCount, isFavorite } = useFavoriteStations();
 const { subscribed: pushSubscribed } = usePushNotifications();
+const { isDark, toggleTheme } = useTheme();
 const shareLoading = ref(false);
 const pendingDeepLinkStationId = ref(null);
 
@@ -610,14 +612,23 @@ async function onStationClosed() {
             <div class="topbar-row topbar-row--title">
                 <h1>Топливо</h1>
                 <div class="topbar-actions">
+                    <button
+                        type="button"
+                        class="topbar-icon-btn topbar-icon-btn--theme"
+                        :title="isDark ? 'Светлая тема' : 'Тёмная тема'"
+                        :aria-label="isDark ? 'Включить светлую тему' : 'Включить тёмную тему'"
+                        @click="toggleTheme"
+                    >
+                        <UiIcon :name="isDark ? 'sun' : 'moon'" :size="16" color="currentColor" />
+                    </button>
                     <button type="button" class="topbar-icon-btn" data-tour="help" title="Справочник" @click="showHelp = true">
-                        <UiIcon name="help-circle" :size="16" color="#7A7570" />
+                        <UiIcon name="help-circle" :size="16" color="currentColor" />
                     </button>
                     <button type="button" class="topbar-icon-btn" title="Статистика" @click="showStats = true">
-                        <UiIcon name="gauge" :size="16" color="#7A7570" />
+                        <UiIcon name="gauge" :size="16" color="currentColor" />
                     </button>
                     <button type="button" class="topbar-icon-btn" title="Написать нам" @click="showFeedback = true">
-                        <UiIcon name="message-square" :size="16" color="#7A7570" />
+                        <UiIcon name="message-square" :size="16" color="currentColor" />
                     </button>
                     <button
                         v-if="canShare"
@@ -628,7 +639,7 @@ async function onStationClosed() {
                         :disabled="shareLoading"
                         @click="shareApp"
                     >
-                        <UiIcon name="navigation" :size="16" color="#7A7570" />
+                        <UiIcon name="navigation" :size="16" color="currentColor" />
                     </button>
                 </div>
             </div>
@@ -647,7 +658,7 @@ async function onStationClosed() {
                         :class="{ active: viewMode === 'map' }"
                         @click="viewMode = 'map'"
                     >
-                        <UiIcon name="map-pin" :size="10" :color="viewMode === 'map' ? '#0A0807' : '#7A7570'" />
+                        <UiIcon name="map-pin" :size="10" color="currentColor" />
                         Карта
                     </button>
                     <button
@@ -656,7 +667,7 @@ async function onStationClosed() {
                         :class="{ active: viewMode === 'list' }"
                         @click="viewMode = 'list'"
                     >
-                        <UiIcon name="list" :size="10" :color="viewMode === 'list' ? '#0A0807' : '#7A7570'" />
+                        <UiIcon name="list" :size="10" color="currentColor" />
                         Список
                     </button>
                 </div>

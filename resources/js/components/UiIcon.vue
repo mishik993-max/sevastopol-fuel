@@ -215,5 +215,23 @@ const px = computed(() => `${props.size}px`);
                 stroke-linejoin="round"
             />
         </template>
+        <template v-else-if="name === 'sun'">
+            <circle cx="12" cy="12" r="4" :stroke="color" :stroke-width="strokeWidth" />
+            <path
+                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
+                :stroke="color"
+                :stroke-width="strokeWidth"
+                stroke-linecap="round"
+            />
+        </template>
+        <template v-else-if="name === 'moon'">
+            <path
+                d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
+                :stroke="color"
+                :stroke-width="strokeWidth"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            />
+        </template>
     </svg>
 </template>
