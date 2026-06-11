@@ -61,27 +61,43 @@ class VisitorStatsService
         $end = Carbon::now($tz)->startOfDay();
         $start = $end->copy()->subDays(max(1, $days) - 1);
 
-        $rows = DB::table('visitor_daily_stats')
+        return DB::table('visitor_daily_stats')
             ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->where('total_visits', '>', 0)
             ->orderBy('date')
             ->get()
-            ->keyBy(fn ($row) => (string) $row->date);
+            ->map(function ($row) use ($tz) {
+                $day = Carbon::parse((string) $row->date, $tz);
 
-        $result = [];
+                return [
+                    'date' => (string) $row->date,
+                    'date_label' => $day->format('d.m.Y'),
+                    'unique_visitors' => (int) $row->unique_visitors,
+                    'total_visits' => (int) $row->total_visits,
+                ];
+            })
+            ->values()
+            ->all();
+    }
 
-        for ($day = $start->copy(); $day->lte($end); $day->addDay()) {
-            $key = $day->toDateString();
-            $row = $rows->get($key);
+    /** @return array{period_days: int, days_with_visits: int, total_visits: int, tracking_since: ?string} */
+    public function periodSummary(int $days = 30): array
+    {
+        $tz = config('app.timezone');
+        $end = Carbon::now($tz)->startOfDay();
+        $start = $end->copy()->subDays(max(1, $days) - 1);
 
-            $result[] = [
-                'date' => $key,
-                'date_label' => $day->format('d.m'),
-                'unique_visitors' => (int) ($row->unique_visitors ?? 0),
-                'total_visits' => (int) ($row->total_visits ?? 0),
-            ];
-        }
+        $stats = DB::table('visitor_daily_stats')
+            ->whereBetween('date', [$start->toDateString(), $end->toDateString()]);
 
-        return $result;
+        return [
+            'period_days' => $days,
+            'days_with_visits' => (int) (clone $stats)->where('total_visits', '>', 0)->count(),
+            'total_visits' => (int) (clone $stats)->sum('total_visits'),
+            'tracking_since' => DB::table('visitor_daily_stats')
+                ->where('total_visits', '>', 0)
+                ->min('date'),
+        ];
     }
 
     private function ensureDailyRow(string $date, $now): void

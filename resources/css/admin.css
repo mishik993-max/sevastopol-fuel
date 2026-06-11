@@ -1027,6 +1027,91 @@
     margin: 0 0 16px;
 }
 
+.admin-visitor-summary {
+    margin: 0 0 18px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle);
+    background: var(--chip-bg);
+    font-size: 0.84rem;
+    color: var(--muted);
+}
+
+.admin-visitor-columns-wrap {
+    margin-bottom: 20px;
+}
+
+.admin-visitor-columns-title {
+    margin: 0 0 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.admin-visitor-columns {
+    display: grid;
+    grid-template-columns: repeat(14, minmax(0, 1fr));
+    gap: 6px;
+    align-items: end;
+    height: 88px;
+    padding: 12px 14px 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px 14px 0 0;
+    border-bottom: none;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+.admin-visitor-columns-axis {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 14px 10px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 0 0 14px 14px;
+    background: var(--chip-bg);
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-visitor-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    height: 100%;
+}
+
+.admin-visitor-column-track {
+    flex: 1;
+    width: 100%;
+    max-width: 28px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.admin-visitor-column-bar {
+    width: 100%;
+    min-height: 2px;
+    border-radius: 4px 4px 2px 2px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 70%, transparent), var(--accent));
+}
+
+.admin-visitor-column-bar--empty {
+    background: var(--border-subtle);
+    min-height: 2px;
+    opacity: 0.55;
+}
+
+.admin-visitor-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+}
+
 .admin-visitor-chart {
     display: flex;
     flex-direction: column;

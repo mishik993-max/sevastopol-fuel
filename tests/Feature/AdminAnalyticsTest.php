@@ -55,10 +55,18 @@ class AdminAnalyticsTest extends TestCase
                     'visitors_today',
                     'visitors_yesterday',
                     'visitors_daily',
+                    'summary' => [
+                        'period_days',
+                        'days_with_visits',
+                        'total_visits',
+                        'tracking_since',
+                    ],
                 ],
             ]);
 
-        $this->assertArrayNotHasKey('system', $response->json('data'));
+        $daily = $response->json('data.visitors_daily');
+        $this->assertCount(1, $daily);
+        $this->assertSame(5, $daily[0]['unique_visitors']);
     }
 
     public function test_admin_system_returns_server_metrics(): void

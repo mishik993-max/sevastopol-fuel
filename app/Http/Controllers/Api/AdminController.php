@@ -100,6 +100,7 @@ class AdminController extends Controller
                 'visitors_today' => $visitors['today'],
                 'visitors_yesterday' => $visitors['yesterday'],
                 'visitors_daily' => $this->visitorStats->dailyBreakdown(30),
+                'summary' => $this->visitorStats->periodSummary(30),
             ],
         ]);
     }
