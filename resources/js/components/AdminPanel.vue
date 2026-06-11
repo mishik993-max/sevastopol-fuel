@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import AdminSettingsPanel from './AdminSettingsPanel.vue';
+import AdminFaqPanel from './AdminFaqPanel.vue';
 import AdminOsmImportPanel from './AdminOsmImportPanel.vue';
 import AdminPushPanel from './AdminPushPanel.vue';
 import AdminReportsPanel from './AdminReportsPanel.vue';
@@ -286,6 +287,14 @@ onMounted(() => {
                 <button
                     type="button"
                     class="admin-nav-item"
+                    :class="{ 'admin-nav-item--active': tab === 'faq' }"
+                    @click="tab = 'faq'"
+                >
+                    FAQ
+                </button>
+                <button
+                    type="button"
+                    class="admin-nav-item"
                     :class="{ 'admin-nav-item--active': tab === 'settings' }"
                     @click="tab = 'settings'"
                 >
@@ -432,6 +441,13 @@ onMounted(() => {
                     @error="error = $event"
                     @saved="(msg) => { saveNotice = msg; error = null; }"
                     @refresh="loadSummary()"
+                />
+
+                <AdminFaqPanel
+                    v-if="tab === 'faq'"
+                    :auth-headers="authHeaders"
+                    @error="error = $event"
+                    @saved="(msg) => { saveNotice = msg; error = null; }"
                 />
 
                 <AdminSettingsPanel

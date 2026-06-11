@@ -5,14 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Enums\FeedbackStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AdminSendPushRequest;
+use App\Http\Requests\ReorderFaqItemsRequest;
+use App\Http\Requests\StoreFaqItemRequest;
 use App\Http\Requests\UpdateAppSettingsRequest;
+use App\Http\Requests\UpdateFaqItemRequest;
 use App\Http\Requests\UpdateFeedbackRequest;
+use App\Models\FaqItem;
 use App\Models\FeedbackMessage;
 use App\Models\PushSubscription;
 use App\Models\Report;
 use App\Models\StationCorrection;
 use App\Services\AdminReportService;
 use App\Services\AppSettingsService;
+use App\Services\FaqService;
 use App\Services\FeedbackService;
 use App\Services\StationCorrectionService;
 use App\Services\StationImportService;
@@ -28,6 +33,7 @@ class AdminController extends Controller
     public function __construct(
         private StationCorrectionService $correctionService,
         private FeedbackService $feedbackService,
+        private FaqService $faqService,
         private AppSettingsService $appSettings,
         private AdminReportService $reportService,
         private StationImportService $importService,
@@ -267,6 +273,58 @@ class AdminController extends Controller
                 'delivered' => $delivered,
                 'total' => $total,
             ],
+        ]);
+    }
+
+    public function faq(): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->faqService->allForAdmin(),
+        ]);
+    }
+
+    public function storeFaq(StoreFaqItemRequest $request): JsonResponse
+    {
+        FaqItem::query()->create([
+            'question' => $request->validated('question'),
+            'answer' => $request->validated('answer'),
+            'is_published' => $request->boolean('is_published', true),
+            'sort_order' => $this->faqService->nextSortOrder(),
+        ]);
+
+        return response()->json([
+            'message' => 'Вопрос добавлен',
+            'data' => $this->faqService->allForAdmin(),
+        ], 201);
+    }
+
+    public function updateFaq(UpdateFaqItemRequest $request, FaqItem $faq): JsonResponse
+    {
+        $faq->update($request->validated());
+
+        return response()->json([
+            'message' => 'Вопрос обновлён',
+            'data' => $this->faqService->allForAdmin(),
+        ]);
+    }
+
+    public function destroyFaq(FaqItem $faq): JsonResponse
+    {
+        $faq->delete();
+
+        return response()->json([
+            'message' => 'Вопрос удалён',
+            'data' => $this->faqService->allForAdmin(),
+        ]);
+    }
+
+    public function reorderFaq(ReorderFaqItemsRequest $request): JsonResponse
+    {
+        $this->faqService->reorder($request->validated('ids'));
+
+        return response()->json([
+            'message' => 'Порядок сохранён',
+            'data' => $this->faqService->allForAdmin(),
         ]);
     }
 }

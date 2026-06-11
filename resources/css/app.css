@@ -1835,6 +1835,103 @@ body {
     color: #86efac;
 }
 
+.guide-section--faq {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+}
+
+.faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.faq-item {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    overflow: hidden;
+}
+
+.faq-item-question {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    list-style: none;
+}
+
+.faq-item-question::-webkit-details-marker {
+    display: none;
+}
+
+.faq-item-question::after {
+    content: '+';
+    flex-shrink: 0;
+    color: var(--muted);
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.faq-item[open] .faq-item-question::after {
+    content: '−';
+}
+
+.faq-item-answer {
+    margin: 0;
+    padding: 0 12px 12px;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--muted);
+    white-space: pre-wrap;
+}
+
+.admin-faq-lead {
+    margin-top: -4px;
+}
+
+.admin-faq-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.admin-section-head h2 {
+    margin: 0;
+}
+
+.field--checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.84rem;
+    color: var(--muted);
+}
+
+.field--checkbox input {
+    width: auto;
+}
+
 /* Яндекс.Карты: контейнер на всю область (фикс чёрных полос на mobile WebKit) */
 .map-wrap .map-wrap-inner {
     position: absolute;

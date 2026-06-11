@@ -1,17 +1,23 @@
 <script setup>
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { GUIDE_SECTIONS } from '../data/guide';
 import { TELEGRAM_CHAT_URL } from '../constants';
 import LegalLinks from './LegalLinks.vue';
 import { usePwaInstall } from '../composables/usePwaInstall';
 import { useShare } from '../composables/useShare';
+import { useFaq } from '../composables/useFaq';
 import UiIcon from './UiIcon.vue';
 
 const emit = defineEmits(['close', 'start-tour', 'open-legal']);
 
 const { canInstall, promptVisible, showReopenTrigger, reopenPrompt, install } = usePwaInstall();
 const { canShare, share } = useShare();
+const { items: faqItems, loading: faqLoading, loadFaq } = useFaq();
 const shareLoading = ref(false);
+
+onMounted(() => {
+    loadFaq();
+});
 
 function openInstall() {
     if (showReopenTrigger.value) {
@@ -105,6 +111,17 @@ async function shareApp() {
                         Расскажите знакомым и загляните в наш
                         <a :href="TELEGRAM_CHAT_URL" target="_blank" rel="noopener noreferrer">Telegram-чат</a>.
                     </p>
+                </section>
+
+                <section v-if="faqLoading || faqItems.length" class="guide-section guide-section--faq">
+                    <h3 class="guide-section-title">Частые вопросы</h3>
+                    <p v-if="faqLoading" class="guide-section-text">Загрузка…</p>
+                    <div v-else class="faq-list">
+                        <details v-for="item in faqItems" :key="item.id" class="faq-item">
+                            <summary class="faq-item-question">{{ item.question }}</summary>
+                            <p class="faq-item-answer">{{ item.answer }}</p>
+                        </details>
+                    </div>
                 </section>
 
                 <section v-for="section in GUIDE_SECTIONS" :key="section.id" class="guide-section">

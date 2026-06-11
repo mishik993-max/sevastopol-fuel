@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\FaqController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\PushController;
 use App\Http\Controllers\Api\PushWatchController;
@@ -26,6 +27,7 @@ Route::middleware('throttle:60,1')->group(function () {
 
     Route::get('/stats', [StatsController::class, 'index']);
     Route::get('/settings', [SettingsController::class, 'index']);
+    Route::get('/faq', [FaqController::class, 'index']);
 
     Route::post('/feedback', [FeedbackController::class, 'store'])->middleware('throttle:5,60');
 
@@ -55,4 +57,9 @@ Route::middleware(['admin', 'throttle:admin-api'])->prefix('admin')->group(funct
     Route::post('/osm-import/run', [AdminController::class, 'osmImportRun'])->middleware('throttle:10,30');
     Route::get('/push/status', [AdminController::class, 'pushStatus']);
     Route::post('/push/send', [AdminController::class, 'sendPush'])->middleware('throttle:5,60');
+    Route::get('/faq', [AdminController::class, 'faq']);
+    Route::post('/faq', [AdminController::class, 'storeFaq']);
+    Route::patch('/faq/reorder', [AdminController::class, 'reorderFaq']);
+    Route::patch('/faq/{faq}', [AdminController::class, 'updateFaq']);
+    Route::delete('/faq/{faq}', [AdminController::class, 'destroyFaq']);
 });
