@@ -1,6 +1,7 @@
 import { createApp } from 'vue';
 import App from './App.vue';
 import '../css/app.css';
+import '../css/admin.css';
 import { initTheme } from './composables/useTheme';
 import { usePushNotifications } from './composables/usePushNotifications';
 import { swRegistrationReady } from './swRegister';

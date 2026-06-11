@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import AdminAnalyticsPanel from './AdminAnalyticsPanel.vue';
 import AdminSettingsPanel from './AdminSettingsPanel.vue';
 import AdminFaqPanel from './AdminFaqPanel.vue';
@@ -12,9 +12,21 @@ import UiIcon from './UiIcon.vue';
 
 const STORAGE_KEY = 'admin_token';
 
+const PAGE_META = {
+    overview: { title: 'Обзор', desc: 'Сводка по модерации и посещаемости' },
+    corrections: { title: 'Исправления АЗС', desc: 'Предложения пользователей по данным заправок' },
+    feedback: { title: 'Обратная связь', desc: 'Сообщения и предложения с сайта' },
+    reports: { title: 'Отчёты', desc: 'Модерация пользовательских отчётов о наличии топлива' },
+    osm: { title: 'Импорт OSM', desc: 'Загрузка и синхронизация заправок из OpenStreetMap' },
+    push: { title: 'Push-уведомления', desc: 'Рассылка срочных сообщений подписчикам' },
+    analytics: { title: 'Аналитика', desc: 'Посещаемость и состояние сервера' },
+    faq: { title: 'FAQ', desc: 'Вопросы и ответы в разделе помощи' },
+    settings: { title: 'Настройки', desc: 'Параметры приложения и напоминания' },
+};
+
 const loggedIn = ref(false);
 const password = ref('');
-const tab = ref('corrections');
+const tab = ref('overview');
 const corrections = ref([]);
 const feedback = ref([]);
 const summary = ref({
@@ -33,6 +45,38 @@ const saveNotice = ref(null);
 const noteEdits = ref({});
 
 const { isDark, toggleTheme } = useTheme();
+
+const pageMeta = computed(() => PAGE_META[tab.value] || PAGE_META.overview);
+
+const navGroups = computed(() => [
+    {
+        label: null,
+        items: [{ id: 'overview', label: 'Обзор', icon: 'gauge' }],
+    },
+    {
+        label: 'Модерация',
+        items: [
+            { id: 'corrections', label: 'Исправления', icon: 'alert-triangle', badge: summary.value.pending_corrections },
+            { id: 'feedback', label: 'Обратная связь', icon: 'message-square', badge: summary.value.new_feedback, badgeAccent: true },
+            { id: 'reports', label: 'Отчёты', icon: 'list' },
+        ],
+    },
+    {
+        label: 'Контент',
+        items: [
+            { id: 'faq', label: 'FAQ', icon: 'help-circle' },
+            { id: 'osm', label: 'Импорт OSM', icon: 'navigation' },
+            { id: 'push', label: 'Push', icon: 'bell' },
+        ],
+    },
+    {
+        label: 'Система',
+        items: [
+            { id: 'analytics', label: 'Аналитика', icon: 'activity' },
+            { id: 'settings', label: 'Настройки', icon: 'settings' },
+        ],
+    },
+]);
 
 function token() {
     return sessionStorage.getItem(STORAGE_KEY) || '';
@@ -55,7 +99,7 @@ async function apiFetch(url, options = {}) {
 
     if (res.status === 401) {
         logout();
-        throw new Error('Сессия истекла - войдите снова');
+        throw new Error('Сессия истекла — войдите снова');
     }
 
     if (!res.ok) throw new Error(json.message || 'Ошибка запроса');
@@ -189,6 +233,8 @@ function logout() {
         visible_reports: 0,
         hidden_reports: 0,
         push_subscriptions: 0,
+        visitors_today: 0,
+        visitors_yesterday: 0,
     };
 }
 
@@ -200,7 +246,23 @@ function correctionSummary(item) {
     return `${item.field_label}: «${item.current_value}» → «${item.proposed_value}»`;
 }
 
+function selectTab(id) {
+    tab.value = id;
+    if (id === 'push') {
+        loadSummary();
+    }
+}
+
 const feedbackNew = computed(() => feedback.value.filter((f) => f.status === 'new'));
+
+watch(saveNotice, (msg) => {
+    if (!msg) return;
+    setTimeout(() => {
+        if (saveNotice.value === msg) {
+            saveNotice.value = null;
+        }
+    }, 4500);
+});
 
 onMounted(() => {
     if (token()) {
@@ -213,8 +275,11 @@ onMounted(() => {
     <div class="admin-layout">
         <header class="admin-topbar">
             <div class="admin-topbar-left">
-                <h1>Админка</h1>
-                <span v-if="loggedIn" class="admin-topbar-sub">Топливо Севастополь</span>
+                <span class="admin-topbar-mark">АЗС</span>
+                <div>
+                    <h1>Админ-панель</h1>
+                    <span v-if="loggedIn" class="admin-topbar-sub">Топливо Севастополь</span>
+                </div>
             </div>
             <div class="admin-topbar-right">
                 <button
@@ -225,7 +290,10 @@ onMounted(() => {
                 >
                     <UiIcon :name="isDark ? 'sun' : 'moon'" :size="16" color="currentColor" />
                 </button>
-                <a href="/" class="admin-back">← На карту</a>
+                <a href="/" class="admin-back">
+                    <UiIcon name="navigation" :size="14" color="currentColor" />
+                    На карту
+                </a>
                 <button v-if="loggedIn" type="button" class="btn btn-ghost btn-sm" @click="logout">
                     Выйти
                 </button>
@@ -243,255 +311,225 @@ onMounted(() => {
                     </label>
                     <p v-if="loginError" class="error">{{ loginError }}</p>
                     <button type="submit" class="btn btn-primary btn-block" :disabled="loading">
-                        {{ loading ? '…' : 'Войти' }}
+                        {{ loading ? 'Вход…' : 'Войти' }}
                     </button>
                 </form>
             </div>
         </div>
 
         <div v-else class="admin-body">
-            <aside class="admin-nav">
-                <button
-                    type="button"
-                    class="admin-nav-item"
-                    :class="{ 'admin-nav-item--active': tab === 'overview' }"
-                    @click="tab = 'overview'"
-                >
-                    Обзор
-                </button>
-                <button
-                    type="button"
-                    class="admin-nav-item"
-                    :class="{ 'admin-nav-item--active': tab === 'corrections' }"
-                    @click="tab = 'corrections'"
-                >
-                    Исправления АЗС
-                    <span v-if="summary.pending_corrections" class="admin-badge">{{ summary.pending_corrections }}</span>
-                </button>
-                <button
-                    type="button"
-                    class="admin-nav-item"
-                    :class="{ 'admin-nav-item--active': tab === 'feedback' }"
-                    @click="tab = 'feedback'"
-                >
-                    Обратная связь
-                    <span v-if="summary.new_feedback" class="admin-badge admin-badge--accent">{{ summary.new_feedback }}</span>
-                </button>
-                <button
-                    type="button"
-                    class="admin-nav-item"
-                    :class="{ 'admin-nav-item--active': tab === 'reports' }"
-                    @click="tab = 'reports'"
-                >
-                    Отчёты
-                </button>
-                <button
-                    type="button"
-                    class="admin-nav-item"
-                    :class="{ 'admin-nav-item--active': tab === 'osm' }"
-                    @click="tab = 'osm'"
-                >
-                    Импорт OSM
-                </button>
-                <button
-                    type="button"
-                    class="admin-nav-item"
-                    :class="{ 'admin-nav-item--active': tab === 'push' }"
-                    @click="tab = 'push'; loadSummary()"
-                >
-                    Срочный push
-                </button>
-                <button
-                    type="button"
-                    class="admin-nav-item"
-                    :class="{ 'admin-nav-item--active': tab === 'analytics' }"
-                    @click="tab = 'analytics'"
-                >
-                    Аналитика
-                </button>
-                <button
-                    type="button"
-                    class="admin-nav-item"
-                    :class="{ 'admin-nav-item--active': tab === 'faq' }"
-                    @click="tab = 'faq'"
-                >
-                    FAQ
-                </button>
-                <button
-                    type="button"
-                    class="admin-nav-item"
-                    :class="{ 'admin-nav-item--active': tab === 'settings' }"
-                    @click="tab = 'settings'"
-                >
-                    Настройки
-                </button>
+            <aside class="admin-sidebar">
+                <nav class="admin-sidebar-nav">
+                    <div v-for="(group, gi) in navGroups" :key="gi" class="admin-nav-group">
+                        <span v-if="group.label" class="admin-nav-group-label">{{ group.label }}</span>
+                        <button
+                            v-for="item in group.items"
+                            :key="item.id"
+                            type="button"
+                            class="admin-nav-item"
+                            :class="{ 'admin-nav-item--active': tab === item.id }"
+                            @click="selectTab(item.id)"
+                        >
+                            <span class="admin-nav-item-icon">
+                                <UiIcon :name="item.icon" :size="15" color="currentColor" />
+                            </span>
+                            <span class="admin-nav-item-label">{{ item.label }}</span>
+                            <span
+                                v-if="item.badge"
+                                class="admin-badge"
+                                :class="{ 'admin-badge--accent': item.badgeAccent }"
+                            >{{ item.badge }}</span>
+                        </button>
+                    </div>
+                </nav>
             </aside>
 
             <main class="admin-main" :class="{ 'admin-main--settings': tab === 'settings' }">
-                <p v-if="saveNotice" class="admin-notice">{{ saveNotice }}</p>
-                <p v-if="error" class="error admin-error">{{ error }}</p>
-                <p v-if="loading" class="hint admin-loading">Загрузка…</p>
+                <div class="admin-main-inner">
+                    <header v-if="['overview', 'corrections', 'feedback'].includes(tab)" class="admin-page-head">
+                        <h2>
+                            {{ pageMeta.title }}
+                            <span
+                                v-if="tab === 'feedback' && feedbackNew.length"
+                                class="admin-count"
+                            >{{ feedbackNew.length }} новых</span>
+                        </h2>
+                        <p class="admin-page-desc">{{ pageMeta.desc }}</p>
+                    </header>
 
-                <section v-if="tab === 'overview'" class="admin-section">
-                    <h2>Обзор</h2>
-                    <div class="admin-stats-grid">
-                        <button type="button" class="admin-stat-card" @click="tab = 'corrections'">
-                            <span class="admin-stat-value">{{ summary.pending_corrections }}</span>
-                            <span class="admin-stat-label">Ожидают исправления</span>
-                        </button>
-                        <button type="button" class="admin-stat-card" @click="tab = 'feedback'">
-                            <span class="admin-stat-value">{{ summary.new_feedback }}</span>
-                            <span class="admin-stat-label">Новых сообщений</span>
-                        </button>
-                        <button type="button" class="admin-stat-card" @click="tab = 'reports'">
-                            <span class="admin-stat-value">{{ summary.visible_reports }}</span>
-                            <span class="admin-stat-label">Видимых отчётов</span>
-                        </button>
-                        <button type="button" class="admin-stat-card" @click="tab = 'analytics'">
-                            <span class="admin-stat-value">{{ summary.visitors_today }}</span>
-                            <span class="admin-stat-label">Посетителей сегодня</span>
-                        </button>
+                    <div v-if="saveNotice" class="admin-toast" role="status">
+                        <UiIcon name="check" :size="16" color="currentColor" />
+                        {{ saveNotice }}
                     </div>
-                    <p class="hint">
-                        Модерация отчётов, исправлений АЗС, обратной связи и ручной импорт из OSM.
-                        Скрыто отчётов: {{ summary.hidden_reports }}.
-                        Вчера заходило: {{ summary.visitors_yesterday }}.
-                    </p>
-                </section>
 
-                <AdminAnalyticsPanel
-                    v-if="tab === 'analytics'"
-                    :auth-headers="authHeaders"
-                    @error="error = $event"
-                />
+                    <p v-if="error" class="error admin-alert">{{ error }}</p>
+                    <div v-if="loading" class="admin-loading-bar" aria-hidden="true" />
 
-                <section v-if="tab === 'corrections'" class="admin-section">
-                    <h2>Исправления АЗС <span class="admin-count">{{ corrections.length }}</span></h2>
-                    <p v-if="!loading && !corrections.length" class="hint">Нет ожидающих исправлений</p>
-
-                    <article v-for="item in corrections" :key="item.id" class="admin-item">
-                        <div class="admin-item-head">
-                            <span class="admin-item-title">{{ item.station_network }}- {{ item.station_name }}</span>
-                            <span class="admin-item-date">{{ item.created_at }}</span>
+                    <section v-if="tab === 'overview'" class="admin-section">
+                        <div class="admin-stats-grid">
+                            <button type="button" class="admin-stat-card admin-stat-card--warn" @click="selectTab('corrections')">
+                                <span class="admin-stat-value">{{ summary.pending_corrections }}</span>
+                                <span class="admin-stat-label">Ожидают исправления</span>
+                            </button>
+                            <button type="button" class="admin-stat-card admin-stat-card--gold" @click="selectTab('feedback')">
+                                <span class="admin-stat-value">{{ summary.new_feedback }}</span>
+                                <span class="admin-stat-label">Новых сообщений</span>
+                            </button>
+                            <button type="button" class="admin-stat-card admin-stat-card--blue" @click="selectTab('reports')">
+                                <span class="admin-stat-value">{{ summary.visible_reports }}</span>
+                                <span class="admin-stat-label">Видимых отчётов</span>
+                            </button>
+                            <button type="button" class="admin-stat-card admin-stat-card--green" @click="selectTab('analytics')">
+                                <span class="admin-stat-value">{{ summary.visitors_today }}</span>
+                                <span class="admin-stat-label">Посетителей сегодня</span>
+                            </button>
                         </div>
-                        <p class="admin-item-text">{{ correctionSummary(item) }}</p>
-                        <p class="admin-item-meta">
-                            {{ item.confirmations_count }}/{{ item.confirmations_required }} подтверждений от пользователей
+                        <p class="admin-overview-note">
+                            Скрыто отчётов: {{ summary.hidden_reports }} ·
+                            Вчера заходило: {{ summary.visitors_yesterday }} ·
+                            Push-подписчиков: {{ summary.push_subscriptions }}
                         </p>
-                        <div class="admin-item-actions">
-                            <button
-                                type="button"
-                                class="btn btn-primary btn-sm"
-                                :disabled="loading"
-                                @click="actCorrection(item.id, 'apply')"
-                            >
-                                Применить
-                            </button>
-                            <button
-                                type="button"
-                                class="btn btn-secondary btn-sm"
-                                :disabled="loading"
-                                @click="actCorrection(item.id, 'reject')"
-                            >
-                                Отклонить
-                            </button>
+                    </section>
+
+                    <AdminAnalyticsPanel
+                        v-if="tab === 'analytics'"
+                        :auth-headers="authHeaders"
+                        @error="error = $event"
+                    />
+
+                    <section v-if="tab === 'corrections'" class="admin-section">
+                        <div v-if="!loading && !corrections.length" class="admin-empty">
+                            <UiIcon name="check" :size="28" color="currentColor" />
+                            <p>Нет ожидающих исправлений</p>
                         </div>
-                    </article>
-                </section>
 
-                <section v-if="tab === 'feedback'" class="admin-section">
-                    <h2>
-                        Обратная связь
-                        <span v-if="feedbackNew.length" class="admin-count">{{ feedbackNew.length }} новых</span>
-                    </h2>
-                    <p v-if="!loading && !feedback.length" class="hint">Сообщений пока нет</p>
-
-                    <article
-                        v-for="item in feedback"
-                        :key="item.id"
-                        class="admin-item"
-                        :class="`admin-item--${item.status}`"
-                    >
-                        <div class="admin-item-head">
-                            <span class="admin-item-title">{{ item.type_label }}</span>
-                            <span class="admin-status-pill" :class="`admin-status-pill--${item.status}`">
-                                {{ item.status_label }}
-                            </span>
+                        <div v-else class="admin-item-list">
+                            <article v-for="item in corrections" :key="item.id" class="admin-item">
+                                <div class="admin-item-head">
+                                    <span class="admin-item-title">{{ item.station_network }} — {{ item.station_name }}</span>
+                                    <span class="admin-item-date">{{ item.created_at }}</span>
+                                </div>
+                                <p class="admin-item-text">{{ correctionSummary(item) }}</p>
+                                <p class="admin-item-meta">
+                                    {{ item.confirmations_count }}/{{ item.confirmations_required }} подтверждений от пользователей
+                                </p>
+                                <div class="admin-item-actions">
+                                    <button
+                                        type="button"
+                                        class="btn btn-primary btn-sm"
+                                        :disabled="loading"
+                                        @click="actCorrection(item.id, 'apply')"
+                                    >
+                                        Применить
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-secondary btn-sm"
+                                        :disabled="loading"
+                                        @click="actCorrection(item.id, 'reject')"
+                                    >
+                                        Отклонить
+                                    </button>
+                                </div>
+                            </article>
                         </div>
-                        <p class="admin-item-date">{{ item.created_at }}</p>
-                        <p class="admin-item-text admin-item-text--message">{{ item.message }}</p>
-                        <p v-if="item.contact" class="admin-item-meta">Контакт: {{ item.contact }}</p>
+                    </section>
 
-                        <label class="field admin-note-field">
-                            Заметка администратора
-                            <textarea
-                                v-model="noteEdits[item.id]"
-                                class="field-textarea"
-                                rows="2"
-                                maxlength="1000"
-                                placeholder="Внутренняя заметка…"
-                            />
-                        </label>
-
-                        <div class="admin-item-actions">
-                            <button
-                                v-if="item.status === 'new'"
-                                type="button"
-                                class="btn btn-secondary btn-sm"
-                                :disabled="loading"
-                                @click="updateFeedback(item.id, 'read')"
-                            >
-                                Прочитано
-                            </button>
-                            <button
-                                type="button"
-                                class="btn btn-primary btn-sm"
-                                :disabled="loading"
-                                @click="updateFeedback(item.id, 'done')"
-                            >
-                                Обработано
-                            </button>
+                    <section v-if="tab === 'feedback'" class="admin-section">
+                        <div v-if="!loading && !feedback.length" class="admin-empty">
+                            <UiIcon name="message-square" :size="28" color="currentColor" />
+                            <p>Сообщений пока нет</p>
                         </div>
-                    </article>
-                </section>
 
-                <AdminReportsPanel
-                    v-if="tab === 'reports'"
-                    :auth-headers="authHeaders"
-                    @error="error = $event"
-                    @saved="(msg) => { saveNotice = msg; error = null; }"
-                    @refresh="loadSummary()"
-                />
+                        <div v-else class="admin-item-list">
+                            <article
+                                v-for="item in feedback"
+                                :key="item.id"
+                                class="admin-item"
+                                :class="`admin-item--${item.status}`"
+                            >
+                                <div class="admin-item-head">
+                                    <span class="admin-item-title">{{ item.type_label }}</span>
+                                    <span class="admin-status-pill" :class="`admin-status-pill--${item.status}`">
+                                        {{ item.status_label }}
+                                    </span>
+                                </div>
+                                <p class="admin-item-date">{{ item.created_at }}</p>
+                                <p class="admin-item-text admin-item-text--message">{{ item.message }}</p>
+                                <p v-if="item.contact" class="admin-item-meta">Контакт: {{ item.contact }}</p>
 
-                <AdminOsmImportPanel
-                    v-if="tab === 'osm'"
-                    :auth-headers="authHeaders"
-                    @error="error = $event"
-                    @done="(msg) => { saveNotice = msg; error = null; }"
-                />
+                                <label class="field admin-note-field">
+                                    Заметка администратора
+                                    <textarea
+                                        v-model="noteEdits[item.id]"
+                                        class="field-textarea"
+                                        rows="2"
+                                        maxlength="1000"
+                                        placeholder="Внутренняя заметка…"
+                                    />
+                                </label>
 
-                <AdminPushPanel
-                    v-if="tab === 'push'"
-                    :auth-headers="authHeaders"
-                    :subscription-count="summary.push_subscriptions"
-                    @error="error = $event"
-                    @saved="(msg) => { saveNotice = msg; error = null; }"
-                    @refresh="loadSummary()"
-                />
+                                <div class="admin-item-actions">
+                                    <button
+                                        v-if="item.status === 'new'"
+                                        type="button"
+                                        class="btn btn-secondary btn-sm"
+                                        :disabled="loading"
+                                        @click="updateFeedback(item.id, 'read')"
+                                    >
+                                        Прочитано
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-primary btn-sm"
+                                        :disabled="loading"
+                                        @click="updateFeedback(item.id, 'done')"
+                                    >
+                                        Обработано
+                                    </button>
+                                </div>
+                            </article>
+                        </div>
+                    </section>
 
-                <AdminFaqPanel
-                    v-if="tab === 'faq'"
-                    :auth-headers="authHeaders"
-                    @error="error = $event"
-                    @saved="(msg) => { saveNotice = msg; error = null; }"
-                />
+                    <AdminReportsPanel
+                        v-if="tab === 'reports'"
+                        :auth-headers="authHeaders"
+                        @error="error = $event"
+                        @saved="(msg) => { saveNotice = msg; error = null; }"
+                        @refresh="loadSummary()"
+                    />
 
-                <AdminSettingsPanel
-                    v-if="tab === 'settings'"
-                    :auth-headers="authHeaders"
-                    @error="error = $event"
-                    @saved="(msg) => { saveNotice = msg; error = null; }"
-                />
+                    <AdminOsmImportPanel
+                        v-if="tab === 'osm'"
+                        :auth-headers="authHeaders"
+                        @error="error = $event"
+                        @done="(msg) => { saveNotice = msg; error = null; }"
+                    />
+
+                    <AdminPushPanel
+                        v-if="tab === 'push'"
+                        :auth-headers="authHeaders"
+                        :subscription-count="summary.push_subscriptions"
+                        @error="error = $event"
+                        @saved="(msg) => { saveNotice = msg; error = null; }"
+                        @refresh="loadSummary()"
+                    />
+
+                    <AdminFaqPanel
+                        v-if="tab === 'faq'"
+                        :auth-headers="authHeaders"
+                        @error="error = $event"
+                        @saved="(msg) => { saveNotice = msg; error = null; }"
+                    />
+
+                    <AdminSettingsPanel
+                        v-if="tab === 'settings'"
+                        :auth-headers="authHeaders"
+                        @error="error = $event"
+                        @saved="(msg) => { saveNotice = msg; error = null; }"
+                    />
+                </div>
             </main>
         </div>
     </div>
