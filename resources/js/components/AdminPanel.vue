@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import AdminAnalyticsPanel from './AdminAnalyticsPanel.vue';
 import AdminSettingsPanel from './AdminSettingsPanel.vue';
 import AdminFaqPanel from './AdminFaqPanel.vue';
 import AdminOsmImportPanel from './AdminOsmImportPanel.vue';
@@ -22,6 +23,8 @@ const summary = ref({
     visible_reports: 0,
     hidden_reports: 0,
     push_subscriptions: 0,
+    visitors_today: 0,
+    visitors_yesterday: 0,
 });
 const loading = ref(false);
 const error = ref(null);
@@ -102,6 +105,8 @@ async function loadSummary() {
         visible_reports: 0,
         hidden_reports: 0,
         push_subscriptions: 0,
+        visitors_today: 0,
+        visitors_yesterday: 0,
         ...json.data,
     };
 }
@@ -299,6 +304,14 @@ onMounted(() => {
                 <button
                     type="button"
                     class="admin-nav-item"
+                    :class="{ 'admin-nav-item--active': tab === 'analytics' }"
+                    @click="tab = 'analytics'"
+                >
+                    Аналитика
+                </button>
+                <button
+                    type="button"
+                    class="admin-nav-item"
                     :class="{ 'admin-nav-item--active': tab === 'faq' }"
                     @click="tab = 'faq'"
                 >
@@ -334,12 +347,23 @@ onMounted(() => {
                             <span class="admin-stat-value">{{ summary.visible_reports }}</span>
                             <span class="admin-stat-label">Видимых отчётов</span>
                         </button>
+                        <button type="button" class="admin-stat-card" @click="tab = 'analytics'">
+                            <span class="admin-stat-value">{{ summary.visitors_today }}</span>
+                            <span class="admin-stat-label">Посетителей сегодня</span>
+                        </button>
                     </div>
                     <p class="hint">
                         Модерация отчётов, исправлений АЗС, обратной связи и ручной импорт из OSM.
                         Скрыто отчётов: {{ summary.hidden_reports }}.
+                        Вчера заходило: {{ summary.visitors_yesterday }}.
                     </p>
                 </section>
+
+                <AdminAnalyticsPanel
+                    v-if="tab === 'analytics'"
+                    :auth-headers="authHeaders"
+                    @error="error = $event"
+                />
 
                 <section v-if="tab === 'corrections'" class="admin-section">
                     <h2>Исправления АЗС <span class="admin-count">{{ corrections.length }}</span></h2>

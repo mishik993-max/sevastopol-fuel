@@ -31,6 +31,7 @@ import { useShare } from './composables/useShare';
 import { useFavoriteStations } from './composables/useFavoriteStations';
 import { syncFavoritePushWatches, PUSH_READY_EVENT } from './composables/useFavoritePushWatches';
 import { usePushNotifications } from './composables/usePushNotifications';
+import { recordVisitOnce } from './composables/useVisitorPing';
 import { useTheme } from './composables/useTheme';
 
 const { stations, loading, error, fetchStations, fetchNearby, fetchStation } = useStations();
@@ -218,6 +219,7 @@ const filteredStations = computed(() => {
 function initApp() {
     applyQueryFuelFromUrl();
     fetchStations(selectedFuel.value);
+    recordVisitOnce();
     locate().catch(() => {
         // геолокация для карты необязательна после прохождения геозоны
     });

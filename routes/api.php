@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\PushController;
 use App\Http\Controllers\Api\PushWatchController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\StatsController;
+use App\Http\Controllers\Api\VisitController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\StationClosureController;
 use App\Http\Controllers\Api\StationCorrectionController;
@@ -30,6 +31,7 @@ Route::middleware('throttle:60,1')->group(function () {
     Route::get('/faq', [FaqController::class, 'index']);
 
     Route::post('/feedback', [FeedbackController::class, 'store'])->middleware('throttle:5,60');
+    Route::post('/visit', [VisitController::class, 'store'])->middleware('throttle:30,1');
 
     Route::get('/push/vapid-public-key', [PushController::class, 'vapidPublicKey']);
     Route::post('/push/subscribe', [PushController::class, 'subscribe']);
@@ -42,6 +44,7 @@ Route::post('/admin/login', [AdminController::class, 'login']);
 
 Route::middleware(['admin', 'throttle:admin-api'])->prefix('admin')->group(function () {
     Route::get('/summary', [AdminController::class, 'summary']);
+    Route::get('/analytics', [AdminController::class, 'analytics']);
     Route::get('/corrections', [AdminController::class, 'corrections']);
     Route::post('/corrections/{correction}/apply', [AdminController::class, 'applyCorrection']);
     Route::post('/corrections/{correction}/reject', [AdminController::class, 'rejectCorrection']);

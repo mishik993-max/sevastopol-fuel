@@ -19,6 +19,8 @@ use App\Services\AdminReportService;
 use App\Services\AppSettingsService;
 use App\Services\FaqService;
 use App\Services\FeedbackService;
+use App\Services\SystemMetricsService;
+use App\Services\VisitorStatsService;
 use App\Services\StationCorrectionService;
 use App\Services\StationImportService;
 use App\Services\WebPushService;
@@ -37,6 +39,8 @@ class AdminController extends Controller
         private AppSettingsService $appSettings,
         private AdminReportService $reportService,
         private StationImportService $importService,
+        private VisitorStatsService $visitorStats,
+        private SystemMetricsService $systemMetrics,
     ) {}
 
     public function login(Request $request): JsonResponse
@@ -72,6 +76,8 @@ class AdminController extends Controller
 
     public function summary(): JsonResponse
     {
+        $visitors = $this->visitorStats->headlineCounts();
+
         return response()->json([
             'data' => [
                 'pending_corrections' => count($this->correctionService->allPending()),
@@ -79,6 +85,22 @@ class AdminController extends Controller
                 'visible_reports' => $this->reportService->visibleCount(),
                 'hidden_reports' => $this->reportService->hiddenCount(),
                 'push_subscriptions' => PushSubscription::query()->count(),
+                'visitors_today' => $visitors['today'],
+                'visitors_yesterday' => $visitors['yesterday'],
+            ],
+        ]);
+    }
+
+    public function analytics(): JsonResponse
+    {
+        $visitors = $this->visitorStats->headlineCounts();
+
+        return response()->json([
+            'data' => [
+                'visitors_today' => $visitors['today'],
+                'visitors_yesterday' => $visitors['yesterday'],
+                'visitors_daily' => $this->visitorStats->dailyBreakdown(30),
+                'system' => $this->systemMetrics->snapshot(),
             ],
         ]);
     }
