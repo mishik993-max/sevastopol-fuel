@@ -5,6 +5,18 @@ import { isInBbox } from '../composables/useAppSettings';
 import { useYandexMaps } from '../composables/useYandexMaps';
 import { markerFillColor, markerIconLayoutOptions } from '../map/stationMarkerIcon';
 
+const isTouchMap = typeof window !== 'undefined'
+    && window.matchMedia('(pointer: coarse)').matches;
+
+function debounce(fn, wait) {
+    let timeoutId;
+
+    return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn(...args), wait);
+    };
+}
+
 const props = defineProps({
     stations: { type: Array, default: () => [] },
     selectedId: { type: Number, default: null },
@@ -29,7 +41,8 @@ let ymaps = null;
 let map = null;
 let resizeObserver = null;
 let resizeScheduled = false;
-const stationPlacemarks = [];
+const placemarkById = new Map();
+const placemarkKeyById = new Map();
 let userPlacemark = null;
 let pickPlacemark = null;
 let mapClickHandler = null;
@@ -45,6 +58,19 @@ const TOP_CONTROLS_PX = 56;
 
 let initialCenterDone = false;
 let mapReady = false;
+let focusTimer = null;
+
+const debouncedSheetLayout = debounce(() => {
+    updateMapMargins();
+    if (props.selectedId) {
+        focusSelected();
+    }
+    scheduleInvalidateSize();
+}, 120);
+
+const debouncedViewportResize = debounce(() => {
+    scheduleInvalidateSize();
+}, 150);
 
 const { load } = useYandexMaps();
 
@@ -65,7 +91,7 @@ function onOrientationChange() {
 }
 
 function onVisualViewportResize() {
-    scheduleInvalidateSize();
+    debouncedViewportResize();
 }
 
 function onVisibilityChange() {
@@ -112,12 +138,13 @@ onMounted(async () => {
             zoom: 12,
             controls: ['zoomControl'],
         }, {
-            suppressMapOpenBlock: false,
+            suppressMapOpenBlock: true,
+            yandexMapDisablePoiInteractivity: true,
         });
 
         mapLoading.value = false;
         updateMapMargins();
-        renderMapLayers();
+        syncAllMapLayers();
         mapReady = true;
         setupMapClick(props.pickMode);
         tryInitialCenter();
@@ -132,23 +159,33 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+    clearTimeout(focusTimer);
     resizeObserver?.disconnect();
     resizeObserver = null;
     teardownViewportListeners();
     clearMapMargins();
     clearQueueCircles();
     clearSelectedPulse();
+    clearStationMarkers();
     setupMapClick(false);
     map?.destroy();
     map = null;
 });
 
-watch(() => props.stations, renderMapLayers, { deep: true });
-watch(() => props.mapLayer, renderMapLayers);
-watch(() => props.favoriteIds, renderMapLayers);
-watch(() => props.selectedId, renderMapLayers);
-watch(() => [props.selectedId, props.sheetHeight], focusSelected);
-watch(() => props.sheetHeight, updateMapMargins);
+watch(() => props.stations, () => syncMarkers(), { deep: true });
+watch(() => props.mapLayer, () => {
+    syncQueueCircles();
+    syncMarkers(true);
+});
+watch(() => props.favoriteIds, () => syncMarkerStyles(), { deep: true });
+watch(() => props.selectedId, () => {
+    syncMarkerStyles();
+    syncSelectedPulse();
+    if (props.selectedId) {
+        scheduleFocusSelected();
+    }
+});
+watch(() => props.sheetHeight, debouncedSheetLayout);
 watch(() => props.userPosition, () => {
     renderUserMarker();
     tryInitialCenter();
@@ -213,7 +250,7 @@ function queueCircleRadius(queueSize) {
 function renderQueueCircles() {
     clearQueueCircles();
 
-    if (!map || !ymaps || props.mapLayer !== 'queue') {
+    if (!map || !ymaps || props.mapLayer !== 'queue' || isTouchMap) {
         return;
     }
 
@@ -243,14 +280,130 @@ function renderQueueCircles() {
     });
 }
 
-function renderMapLayers() {
+function syncAllMapLayers() {
     if (!map || !ymaps) {
         return;
     }
 
+    syncQueueCircles();
+    syncSelectedPulse();
+    syncMarkers(true);
+}
+
+function syncQueueCircles() {
     renderQueueCircles();
-    renderSelectedPulse();
-    renderMarkers();
+}
+
+function scheduleFocusSelected() {
+    clearTimeout(focusTimer);
+    updateMapMargins();
+    focusTimer = setTimeout(() => {
+        focusSelected();
+    }, 60);
+}
+
+function markerVisualKey(station) {
+    const markerColor = props.mapLayer === 'queue'
+        ? queueMarkerColor(station.queue_size)
+        : station.marker_color;
+
+    return [
+        station.id,
+        markerColor,
+        station.network,
+        station.queue_size,
+        props.mapLayer,
+        props.selectedId === station.id ? 1 : 0,
+        props.favoriteIds.includes(station.id) ? 1 : 0,
+    ].join('|');
+}
+
+function placemarkOptions(station) {
+    const selected = station.id === props.selectedId;
+    const isFavorite = props.favoriteIds.includes(station.id);
+
+    return {
+        ...markerIconLayoutOptions(station, {
+            favorite: isFavorite,
+            mapLayer: props.mapLayer,
+        }),
+        zIndex: selected ? 1000 : (isFavorite ? 650 : 100),
+    };
+}
+
+function clearStationMarkers() {
+    if (!map) {
+        placemarkById.clear();
+        placemarkKeyById.clear();
+        return;
+    }
+
+    placemarkById.forEach((placemark) => map.geoObjects.remove(placemark));
+    placemarkById.clear();
+    placemarkKeyById.clear();
+}
+
+function syncMarkers(force = false) {
+    if (!map || !ymaps) {
+        return;
+    }
+
+    const nextIds = new Set(props.stations.map((station) => station.id));
+
+    for (const [id, placemark] of placemarkById) {
+        if (!nextIds.has(id)) {
+            map.geoObjects.remove(placemark);
+            placemarkById.delete(id);
+            placemarkKeyById.delete(id);
+        }
+    }
+
+    props.stations.forEach((station) => {
+        const key = markerVisualKey(station);
+        const existing = placemarkById.get(station.id);
+
+        if (existing && !force && placemarkKeyById.get(station.id) === key) {
+            return;
+        }
+
+        if (existing) {
+            existing.options.set(placemarkOptions(station));
+            placemarkKeyById.set(station.id, key);
+            return;
+        }
+
+        const placemark = new ymaps.Placemark(
+            stationCoords(station),
+            {},
+            placemarkOptions(station),
+        );
+
+        placemark.events.add('click', () => emit('select', station));
+        map.geoObjects.add(placemark);
+        placemarkById.set(station.id, placemark);
+        placemarkKeyById.set(station.id, key);
+    });
+}
+
+function syncMarkerStyles() {
+    if (!map || !ymaps) {
+        return;
+    }
+
+    props.stations.forEach((station) => {
+        const placemark = placemarkById.get(station.id);
+        if (!placemark) {
+            return;
+        }
+
+        const key = markerVisualKey(station);
+        if (placemarkKeyById.get(station.id) === key) {
+            return;
+        }
+
+        placemark.options.set(placemarkOptions(station));
+        placemarkKeyById.set(station.id, key);
+    });
 }
 
 function clearSelectedPulse() {
@@ -266,7 +419,7 @@ function clearSelectedPulse() {
 function renderSelectedPulse() {
     clearSelectedPulse();
 
-    if (!map || !ymaps || !props.selectedId || props.mapLayer === 'queue') {
+    if (!map || !ymaps || !props.selectedId || props.mapLayer === 'queue' || isTouchMap) {
         return;
     }
 
@@ -301,6 +454,10 @@ function renderSelectedPulse() {
     });
 }
 
+function syncSelectedPulse() {
+    renderSelectedPulse();
+}
+
 function invalidateSize() {
     if (!map?.container?.fitToViewport) {
         return;
@@ -315,38 +472,6 @@ function invalidateSize() {
 
 function stationCoords(station) {
     return [Number(station.latitude), Number(station.longitude)];
-}
-
-function clearStationMarkers() {
-    if (!map) return;
-    stationPlacemarks.forEach((p) => map.geoObjects.remove(p));
-    stationPlacemarks.length = 0;
-}
-
-function renderMarkers() {
-    if (!map || !ymaps) return;
-
-    clearStationMarkers();
-
-    props.stations.forEach((station) => {
-        const selected = station.id === props.selectedId;
-        const isFavorite = props.favoriteIds.includes(station.id);
-        const placemark = new ymaps.Placemark(
-            stationCoords(station),
-            {},
-            {
-                ...markerIconLayoutOptions(station, {
-                    favorite: isFavorite,
-                    mapLayer: props.mapLayer,
-                }),
-                zIndex: selected ? 1000 : (isFavorite ? 650 : 100),
-            },
-        );
-
-        placemark.events.add('click', () => emit('select', station));
-        map.geoObjects.add(placemark);
-        stationPlacemarks.push(placemark);
-    });
 }
 
 function tryInitialCenter() {

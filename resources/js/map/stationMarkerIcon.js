@@ -16,6 +16,12 @@ export const MARKER_ICON_SIZE = 32;
 export const FAVORITE_MARKER_ICON_SIZE = 40;
 
 const iconCache = new Map();
+const liteIconCache = new Map();
+
+export const isLiteMarkerMode = () => (
+    typeof window !== 'undefined'
+    && window.matchMedia('(pointer: coarse)').matches
+);
 
 function escapeXml(value) {
     return String(value)
@@ -75,6 +81,19 @@ function buildMarkerSvg({
 </svg>`;
 }
 
+function buildLiteMarkerSvg({ fill, label, favorite = false }) {
+    const safeLabel = escapeXml(label);
+    const size = favorite ? FAVORITE_MARKER_ICON_SIZE : MARKER_ICON_SIZE;
+    const center = size / 2;
+    const radius = favorite ? 12 : 11;
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  ${favorite ? `<circle cx="${center}" cy="${center}" r="${radius + 2}" fill="none" stroke="${FAVORITE_GOLD}" stroke-width="2.5"/>` : ''}
+  <circle cx="${center}" cy="${center}" r="${radius}" fill="${fill}" stroke="rgba(255,255,255,0.92)" stroke-width="2"/>
+  <text x="${center}" y="${center + 4}" text-anchor="middle" fill="#FFFFFF" font-size="10" font-weight="700" font-family="'Exo 2', Arial, sans-serif">${safeLabel}</text>
+</svg>`;
+}
+
 export function getStationMarkerIconUrl(station, { favorite = false, mapLayer = 'fuel' } = {}) {
     const markerColor = mapLayer === 'queue'
         ? queueMarkerColor(station.queue_size)
@@ -85,6 +104,21 @@ export function getStationMarkerIconUrl(station, { favorite = false, mapLayer = 
         : markerFillColor(markerColor);
 
     const label = networkMarkerLabel(station.network);
+    const lite = isLiteMarkerMode();
+
+    if (lite) {
+        const cacheKey = `${fill}|${label}|${favorite ? 1 : 0}|lite`;
+        if (liteIconCache.has(cacheKey)) {
+            return liteIconCache.get(cacheKey);
+        }
+
+        const svg = buildLiteMarkerSvg({ fill, label, favorite });
+        const url = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+        liteIconCache.set(cacheKey, url);
+
+        return url;
+    }
+
     const glow = mapLayer !== 'queue' && markerColor === 'green';
     const cacheKey = `${fill}|${label}|${favorite ? 1 : 0}|${glow ? 1 : 0}`;
 

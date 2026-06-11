@@ -92,8 +92,17 @@ const mapFabBottomStyle = computed(() => {
 });
 
 let sheetObserver = null;
+let sheetDebounceTimer = null;
+
+function debounceSheetHeight(fn, wait) {
+    return () => {
+        clearTimeout(sheetDebounceTimer);
+        sheetDebounceTimer = setTimeout(fn, wait);
+    };
+}
 
 function teardownSheetObserver() {
+    clearTimeout(sheetDebounceTimer);
     sheetObserver?.disconnect();
     sheetObserver = null;
 }
@@ -105,12 +114,13 @@ function observeSheet(el) {
         return;
     }
 
-    const update = () => {
+    const applyHeight = () => {
         sheetHeightPx.value = el.offsetHeight;
     };
 
-    update();
-    sheetObserver = new ResizeObserver(update);
+    applyHeight();
+    const debouncedApply = debounceSheetHeight(applyHeight, 100);
+    sheetObserver = new ResizeObserver(debouncedApply);
     sheetObserver.observe(el);
 }
 
