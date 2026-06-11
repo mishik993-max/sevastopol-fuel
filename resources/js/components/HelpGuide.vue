@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { GUIDE_SECTIONS } from '../data/guide';
+import { TELEGRAM_CHAT_URL } from '../constants';
 import LegalLinks from './LegalLinks.vue';
 import { usePwaInstall } from '../composables/usePwaInstall';
 import { useShare } from '../composables/useShare';
@@ -86,7 +87,25 @@ async function shareApp() {
                     >
                         Поделиться ссылкой
                     </button>
+
+                    <a
+                        :href="TELEGRAM_CHAT_URL"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="btn btn-secondary btn-block community-guide-link"
+                    >
+                        Чат в Telegram
+                    </a>
                 </div>
+
+                <section class="guide-section guide-section--community">
+                    <h3 class="guide-section-title">Помогите сделать карту точнее</h3>
+                    <p class="guide-section-text">
+                        Чем чаще водители рекомендуют сайт и отмечают заправки, тем полезнее и актуальнее информация для всех.
+                        Расскажите знакомым и загляните в наш
+                        <a :href="TELEGRAM_CHAT_URL" target="_blank" rel="noopener noreferrer">Telegram-чат</a>.
+                    </p>
+                </section>
 
                 <section v-for="section in GUIDE_SECTIONS" :key="section.id" class="guide-section">
                     <h3 class="guide-section-title">{{ section.title }}</h3>

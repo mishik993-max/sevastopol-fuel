@@ -56,6 +56,8 @@ export const NETWORK_PRIORITY = [
 ];
 
 /** Границы Севастополя и окрестностей (как в config/stations.php) */
+export const TELEGRAM_CHAT_URL = 'https://t.me/sevazsru';
+
 export const SEVASTOPOL_BBOX = {
     south: 44.48,
     west: 33.38,

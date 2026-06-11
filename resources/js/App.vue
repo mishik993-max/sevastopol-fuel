@@ -8,6 +8,7 @@ import ConfirmButton from './components/ConfirmButton.vue';
 import AddStationForm from './components/AddStationForm.vue';
 import EditStationForm from './components/EditStationForm.vue';
 import PushPrompt from './components/PushPrompt.vue';
+import CommunityBanner from './components/CommunityBanner.vue';
 import PwaInstallButton from './components/PwaInstallButton.vue';
 import GeoGate from './components/GeoGate.vue';
 import OnboardingTour from './components/OnboardingTour.vue';
@@ -773,6 +774,8 @@ async function onStationClosed() {
         </header>
 
         <PushPrompt />
+
+        <CommunityBanner />
 
         <div class="map-wrap" :class="{ 'map-wrap--list': viewMode === 'list' }" data-tour="map">
             <MapView
