@@ -404,13 +404,21 @@ class FuelAssistantService
             ];
         }
 
+        $restrictNetwork = trim($networkHint) !== '';
+        $hasStrongIdentity = $restrictNetwork && (
+            ($addressHint !== null && trim($addressHint) !== '')
+            || preg_match('/(?:азс|а\.?з\.?с\.?)\s*[-–№]?\s*\d+/ui', $nameHint) === 1
+        );
+        $matchLatitude = $hasStrongIdentity ? null : $latitude;
+        $matchLongitude = $hasStrongIdentity ? null : $longitude;
+
         $match = $this->matcher->bestMatch(
             $networkHint,
             $nameHint,
             $addressHint,
-            $latitude,
-            $longitude,
-            restrictNetwork: false,
+            $matchLatitude,
+            $matchLongitude,
+            restrictNetwork: $restrictNetwork,
         );
 
         $candidates = $this->matcher->candidates(
@@ -418,23 +426,29 @@ class FuelAssistantService
             $nameHint,
             $addressHint,
             8,
-            $latitude,
-            $longitude,
-            restrictNetwork: false,
+            $matchLatitude,
+            $matchLongitude,
+            restrictNetwork: $restrictNetwork,
         );
+
+        $detectedLabel = trim($networkHint) !== '' && trim($nameHint) !== ''
+            ? trim("{$networkHint} · {$nameHint}")
+            : null;
 
         return [
             'network' => $networkHint,
             'name_hint' => $nameHint,
             'address_hint' => $addressHint,
+            'detected_label' => $detectedLabel,
+            'detected_address' => $addressHint,
             'queue_size' => $stationQueue,
             'queue_label' => $stationQueue ? QueueSize::from($stationQueue)->label() : null,
             'fuels' => $fuels,
             'station_id' => $match['station']->id ?? null,
             'station_label' => $match
                 ? "{$match['station']->network} · {$match['station']->name}"
-                : null,
-            'station_address' => $match['station']->address ?? null,
+                : $detectedLabel,
+            'station_address' => $match['station']->address ?? $addressHint,
             'confidence' => $match['score'] ?? null,
             'match_type' => $match['match_type'] ?? null,
             'match_distance_m' => $match['distance_m'] ?? null,

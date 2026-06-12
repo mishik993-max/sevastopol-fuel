@@ -305,4 +305,42 @@ class AdminAiChatTest extends TestCase
 
         $this->assertNull($match);
     }
+
+    public function test_station_matcher_prefers_named_atan_over_nearby_other_network(): void
+    {
+        $atan81 = Station::query()->create([
+            'name' => 'АЗС-81',
+            'network' => 'ATAN',
+            'address' => 'г. Севастополь, ул. Хрусталева, 62',
+            'latitude' => 44.568,
+            'longitude' => 33.548,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        Station::query()->create([
+            'name' => 'CRS',
+            'network' => 'CRS',
+            'address' => 'ул. 4-я Бастионная улица 32А, Севастополь, Россия',
+            'latitude' => 44.569,
+            'longitude' => 33.522,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        $matcher = app(StationMatcher::class);
+
+        $match = $matcher->bestMatch(
+            'Атан',
+            'АЗС-81',
+            'ул. Хрусталёва, 62',
+            44.569,
+            33.522,
+            restrictNetwork: true,
+        );
+
+        $this->assertNotNull($match);
+        $this->assertSame($atan81->id, $match['station']->id);
+        $this->assertContains($match['match_type'], ['number', 'address']);
+    }
 }

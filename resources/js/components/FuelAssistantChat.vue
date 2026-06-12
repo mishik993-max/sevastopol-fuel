@@ -266,6 +266,10 @@ onMounted(loadSession);
 
         <div v-if="hasPreview" class="fuel-assistant-preview">
             <p class="fuel-assistant-preview-label">Проверьте перед публикацией</p>
+            <p v-if="preview.detected_label && preview.detected_label !== preview.station_label" class="fuel-assistant-preview-detected">
+                Вы описали: {{ preview.detected_label }}
+                <span v-if="preview.detected_address"> · {{ preview.detected_address }}</span>
+            </p>
             <p v-if="preview.station_label" class="fuel-assistant-preview-station">
                 {{ preview.station_label }}
             </p>
@@ -275,7 +279,7 @@ onMounted(loadSession);
             <p class="fuel-assistant-preview-fuels">{{ previewFuelsSummary() }}</p>
 
             <label v-if="stationOptions.length" class="fuel-assistant-select-label">
-                АЗС в базе
+                Привязать к АЗС в базе
                 <select v-model.number="selectedStationId" class="field-input fuel-assistant-select">
                     <option :value="null" disabled>— выберите —</option>
                     <option

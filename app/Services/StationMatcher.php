@@ -133,7 +133,14 @@ class StationMatcher
      */
     private function compareCandidates(array $a, array $b, bool $preferDistance): int
     {
-        if ($preferDistance) {
+        $tierA = $this->candidateTier($a);
+        $tierB = $this->candidateTier($b);
+
+        if ($tierA !== $tierB) {
+            return $tierB <=> $tierA;
+        }
+
+        if ($preferDistance && $tierA === 2) {
             $distanceA = $a['distance_m'] ?? null;
             $distanceB = $b['distance_m'] ?? null;
 
@@ -151,6 +158,23 @@ class StationMatcher
         }
 
         return $b['score'] <=> $a['score'];
+    }
+
+    /** @param  array{score: float, match_type: string}  $candidate */
+    private function candidateTier(array $candidate): int
+    {
+        $type = $candidate['match_type'];
+        $score = $candidate['score'];
+
+        if (in_array($type, ['number', 'address'], true) && $score >= 55) {
+            return 3;
+        }
+
+        if ($type === 'coordinates' && $score >= 55) {
+            return 2;
+        }
+
+        return 1;
     }
 
     private function stationDistanceM(Station $station, ?float $latitude, ?float $longitude): ?int
@@ -374,7 +398,13 @@ class StationMatcher
         }
 
         foreach ($this->networkAliases($a) as $alias) {
-            if ($alias === $b || str_contains($b, $alias)) {
+            if ($alias === $b || str_contains($b, $alias) || str_contains($alias, $b)) {
+                return true;
+            }
+        }
+
+        foreach ($this->networkAliases($b) as $alias) {
+            if ($alias === $a || str_contains($a, $alias) || str_contains($alias, $a)) {
                 return true;
             }
         }
@@ -385,13 +415,14 @@ class StationMatcher
     /** @return list<string> */
     private function networkAliases(string $network): array
     {
-        $map = [
-            'atan' => ['atan', 'атан'],
-            'тэс' => ['тэс', 'tes'],
-            'wog' => ['wog'],
+        $groups = [
+            ['atan', 'атан'],
+            ['тэс', 'tes'],
+            ['wog'],
+            ['снп', 'snp'],
         ];
 
-        foreach ($map as $aliases) {
+        foreach ($groups as $aliases) {
             if (in_array($network, $aliases, true)) {
                 return $aliases;
             }
@@ -402,7 +433,7 @@ class StationMatcher
 
     private function extractStationNumber(string $text): ?string
     {
-        if (preg_match('/(?:азс|а\.?з\.?с\.?)\s*№?\s*(\d+)/ui', $text, $matches)) {
+        if (preg_match('/(?:азс|а\.?з\.?с\.?)\s*[-–№]?\s*(\d+)/ui', $text, $matches)) {
             return $matches[1];
         }
 
@@ -415,6 +446,10 @@ class StationMatcher
 
     private function extractStationNumberFromStation(Station $station): ?string
     {
+        if (preg_match('/(?:азс|а\.?з\.?с\.?)\s*[-–№]?\s*(\d+)/ui', $station->name, $matches)) {
+            return $matches[1];
+        }
+
         if (preg_match('/(?:№|Russia|Россия|ATAN|АТАН)\s*(\d+)/ui', $station->name, $matches)) {
             return $matches[1];
         }
