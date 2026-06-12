@@ -1718,6 +1718,47 @@
     font-size: 0.92rem;
 }
 
+.admin-sevtech-section .admin-ai-lead a {
+    color: var(--accent);
+}
+
+.admin-sevtech-meta {
+    margin: 0 0 12px;
+}
+
+.admin-sevtech-list {
+    max-height: none;
+    margin: 14px 0;
+}
+
+.admin-sevtech-match {
+    margin: 4px 0;
+    font-size: 0.82rem;
+    color: var(--accent);
+}
+
+.admin-sevtech-fuels {
+    margin: 6px 0 0;
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.4;
+}
+
+.admin-sevtech-raw {
+    margin-top: 16px;
+}
+
+.admin-sevtech-raw summary {
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+.admin-sevtech-note {
+    margin-top: 16px;
+}
+
 @media (max-width: 960px) {
     .admin-ai-layout {
         grid-template-columns: 1fr;

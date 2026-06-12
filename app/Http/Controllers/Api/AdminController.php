@@ -26,6 +26,7 @@ use App\Services\FeedbackService;
 use App\Services\SystemMetricsService;
 use App\Services\VisitorStatsService;
 use App\Services\StationCorrectionService;
+use App\Services\SevtechFuelSyncService;
 use App\Services\StationImportService;
 use App\Services\WebPushService;
 use Illuminate\Support\Facades\Cache;
@@ -46,6 +47,7 @@ class AdminController extends Controller
         private VisitorStatsService $visitorStats,
         private SystemMetricsService $systemMetrics,
         private AdminFuelAiService $fuelAi,
+        private SevtechFuelSyncService $sevtechFuel,
     ) {}
 
     public function login(Request $request): JsonResponse
@@ -308,6 +310,34 @@ class AdminController extends Controller
 
         return response()->json([
             'message' => 'Импорт выполнен',
+            'data' => $result,
+        ]);
+    }
+
+    public function sevtechPreview(): JsonResponse
+    {
+        try {
+            return response()->json(['data' => $this->sevtechFuel->preview()]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
+        }
+    }
+
+    public function sevtechSync(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'station_ids' => ['sometimes', 'array'],
+            'station_ids.*' => ['integer', 'exists:stations,id'],
+        ]);
+
+        try {
+            $result = $this->sevtechFuel->sync($validated['station_ids'] ?? []);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
+        }
+
+        return response()->json([
+            'message' => "Создано отчётов: {$result['created']}",
             'data' => $result,
         ]);
     }

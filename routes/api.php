@@ -64,6 +64,8 @@ Route::middleware(['admin'])->prefix('admin')->group(function () {
     Route::delete('/reports/{report}', [AdminController::class, 'destroyReport']);
     Route::get('/osm-import/preview', [AdminController::class, 'osmImportPreview']);
     Route::post('/osm-import/run', [AdminController::class, 'osmImportRun']);
+    Route::get('/sevtech/preview', [AdminController::class, 'sevtechPreview']);
+    Route::post('/sevtech/sync', [AdminController::class, 'sevtechSync']);
     Route::get('/push/status', [AdminController::class, 'pushStatus']);
     Route::post('/push/send', [AdminController::class, 'sendPush']);
     Route::get('/faq', [AdminController::class, 'faq']);

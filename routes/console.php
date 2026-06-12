@@ -11,3 +11,9 @@ Artisan::command('inspire', function () {
 Schedule::command('notifications:qr-reminder-tick')
     ->everyMinute()
     ->timezone(config('notifications.timezone'));
+
+if ((int) config('sevtech.schedule_minutes') > 0) {
+    Schedule::command('stations:sync-sevtech')
+        ->cron('*/'.(int) config('sevtech.schedule_minutes').' * * * *')
+        ->timezone(config('app.timezone'));
+}

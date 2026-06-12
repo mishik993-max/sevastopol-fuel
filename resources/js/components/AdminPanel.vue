@@ -6,6 +6,7 @@ import AdminSystemPanel from './AdminSystemPanel.vue';
 import AdminSettingsPanel from './AdminSettingsPanel.vue';
 import AdminFaqPanel from './AdminFaqPanel.vue';
 import AdminOsmImportPanel from './AdminOsmImportPanel.vue';
+import AdminSevtechPanel from './AdminSevtechPanel.vue';
 import AdminPushPanel from './AdminPushPanel.vue';
 import AdminReportsPanel from './AdminReportsPanel.vue';
 import { apiUrl } from '../api';
@@ -20,6 +21,7 @@ const PAGE_META = {
     feedback: { title: 'Обратная связь', desc: 'Сообщения и предложения с сайта' },
     reports: { title: 'Отчёты', desc: 'Модерация пользовательских отчётов о наличии топлива' },
     osm: { title: 'Импорт OSM', desc: 'Загрузка и синхронизация заправок из OpenStreetMap' },
+    sevtech: { title: 'SevTech map', desc: 'Синхронизация наличия топлива с fuel.sevtech.org' },
     push: { title: 'Push-уведомления', desc: 'Рассылка срочных сообщений подписчикам' },
     ai: { title: 'AI-импорт', desc: 'Разбор сообщений о топливе и создание отчётов' },
     analytics: { title: 'Посетители', desc: 'Уникальные заходы на сайт по дням' },
@@ -70,6 +72,7 @@ const navGroups = computed(() => [
         items: [
             { id: 'faq', label: 'FAQ', icon: 'help-circle' },
             { id: 'osm', label: 'Импорт OSM', icon: 'navigation' },
+            { id: 'sevtech', label: 'SevTech map', icon: 'activity' },
             { id: 'ai', label: 'AI-импорт', icon: 'star' },
             { id: 'push', label: 'Push', icon: 'bell' },
         ],
@@ -524,6 +527,13 @@ onMounted(() => {
 
                     <AdminOsmImportPanel
                         v-if="tab === 'osm'"
+                        :auth-headers="authHeaders"
+                        @error="error = $event"
+                        @done="(msg) => { saveNotice = msg; error = null; }"
+                    />
+
+                    <AdminSevtechPanel
+                        v-if="tab === 'sevtech'"
                         :auth-headers="authHeaders"
                         @error="error = $event"
                         @done="(msg) => { saveNotice = msg; error = null; }"
