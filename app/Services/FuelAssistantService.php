@@ -63,12 +63,12 @@ class FuelAssistantService
         if ($status === 'rejected') {
             $session->draft = null;
             $session->preview = null;
-            $session->messages[] = [
+            $this->appendMessage($session, [
                 'role' => 'assistant',
                 'content' => $reply,
                 'status' => 'rejected',
                 'at' => now()->toIso8601String(),
-            ];
+            ]);
             $session->save();
 
             return $this->formatSession($session->fresh());
@@ -80,12 +80,12 @@ class FuelAssistantService
             $preview = $this->buildPreview($draft, $latitude, $longitude);
             $session->draft = $draft;
             $session->preview = $preview;
-            $session->messages[] = [
+            $this->appendMessage($session, [
                 'role' => 'assistant',
                 'content' => $reply,
                 'status' => 'draft',
                 'at' => now()->toIso8601String(),
-            ];
+            ]);
             $session->save();
 
             $formatted = $this->formatSession($session->fresh());
@@ -99,12 +99,12 @@ class FuelAssistantService
 
         $session->draft = null;
         $session->preview = null;
-        $session->messages[] = [
+        $this->appendMessage($session, [
             'role' => 'assistant',
             'content' => $reply,
             'status' => 'collecting',
             'at' => now()->toIso8601String(),
-        ];
+        ]);
         $session->save();
 
         return $this->formatSession($session->fresh());
@@ -199,12 +199,12 @@ class FuelAssistantService
 
         $reply = trim((string) ($aiResult['data']['reply'] ?? 'Что нужно исправить?'));
 
-        $session->messages[] = [
+        $this->appendMessage($session, [
             'role' => 'assistant',
             'content' => $reply,
             'status' => 'collecting',
             'at' => now()->toIso8601String(),
-        ];
+        ]);
         $session->save();
 
         return $this->formatSession($session->fresh());
@@ -267,6 +267,14 @@ class FuelAssistantService
             'draft' => null,
             'preview' => null,
         ]);
+    }
+
+    /** @param  array<string, mixed>  $message */
+    private function appendMessage(FuelAssistantSession $session, array $message): void
+    {
+        $messages = $session->messages ?? [];
+        $messages[] = $message;
+        $session->messages = $messages;
     }
 
     /** @return array<string, mixed> */
