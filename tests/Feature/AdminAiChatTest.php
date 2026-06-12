@@ -368,6 +368,27 @@ class AdminAiChatTest extends TestCase
         $this->assertSame('address', $match['match_type']);
     }
 
+    public function test_station_matcher_address_only_retry_finds_generic_atan_station(): void
+    {
+        $station = Station::query()->create([
+            'name' => 'Атан',
+            'network' => 'Атан',
+            'address' => 'улица Хрусталеva 62, Севастополь, Россия',
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        $match = app(StationMatcher::class)->bestMatch(
+            'Атан',
+            '',
+            'ул. Хрусталеva, 62',
+            restrictNetwork: true,
+        );
+
+        $this->assertNotNull($match);
+        $this->assertSame($station->id, $match['station']->id);
+    }
+
     public function test_station_matcher_does_not_treat_azs_number_as_house_number(): void
     {
         Station::query()->create([

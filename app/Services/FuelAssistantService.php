@@ -353,19 +353,7 @@ class FuelAssistantService
      */
     private function buildPreview(array $draft, ?float $latitude, ?float $longitude): array
     {
-        $networkHint = (string) ($draft['network'] ?? '');
-        $nameHint = (string) ($draft['name_hint'] ?? '');
-        $addressHint = isset($draft['address_hint']) ? (string) $draft['address_hint'] : null;
-        $addressHint = trim((string) $addressHint) !== '' ? trim((string) $addressHint) : null;
-
-        if ($addressHint === null && preg_match('/(?:ул\.?|улица|пр\.?|просп|шоссе)/ui', $nameHint)) {
-            $addressHint = trim((string) (preg_replace(
-                '/^(?:азс|а\.?з\.?с\.?)\s*[-–№]?\s*\d+\s*,?\s*/ui',
-                '',
-                $nameHint,
-            ) ?? $nameHint));
-            $addressHint = $addressHint !== '' ? $addressHint : null;
-        }
+        [$networkHint, $nameHint, $addressHint] = $this->resolveDraftLocation($draft);
         $saleTypes = $this->normalizeSaleTypes($draft['sale_types'] ?? ['regular']);
         $stationQueue = $this->normalizeQueueSize($draft['queue_size'] ?? null);
         $note = isset($draft['note']) ? (string) $draft['note'] : null;
@@ -423,30 +411,14 @@ class FuelAssistantService
         $matchLatitude = $hasStrongIdentity ? null : $latitude;
         $matchLongitude = $hasStrongIdentity ? null : $longitude;
 
-        $match = $this->matcher->bestMatch(
+        [$match, $candidates] = $this->findStationMatch(
             $networkHint,
             $nameHint,
             $addressHint,
             $matchLatitude,
             $matchLongitude,
-            restrictNetwork: $restrictNetwork,
+            $restrictNetwork,
         );
-
-        $candidates = $this->matcher->candidates(
-            $networkHint,
-            $nameHint,
-            $addressHint,
-            12,
-            $matchLatitude,
-            $matchLongitude,
-            restrictNetwork: $restrictNetwork,
-        );
-
-        $candidates = $this->matcher->refineForPicker($candidates, $nameHint, $addressHint);
-
-        if ($match === null && count($candidates) === 1 && $candidates[0]['score'] >= 45) {
-            $match = $candidates[0];
-        }
 
         $detectedLabel = trim($networkHint) !== '' && trim($nameHint) !== ''
             ? trim("{$networkHint} · {$nameHint}")
@@ -486,6 +458,99 @@ class FuelAssistantService
                 'distance_m' => $candidate['distance_m'] ?? null,
             ], $candidates),
         ];
+    }
+
+    /** @param  array<string, mixed>  $draft
+     * @return array{0: string, 1: string, 2: string|null}
+     */
+    private function resolveDraftLocation(array $draft): array
+    {
+        $networkHint = trim((string) ($draft['network'] ?? ''));
+        $nameHint = trim((string) ($draft['name_hint'] ?? $draft['name'] ?? ''));
+        $addressHint = trim((string) ($draft['address_hint'] ?? $draft['address'] ?? $draft['location'] ?? ''));
+
+        if ($addressHint === '') {
+            $addressHint = null;
+        }
+
+        if ($addressHint === null && preg_match('/(?:ул\.?|улица|пр\.?|просп|шоссе)/ui', $nameHint)) {
+            $addressHint = trim((string) (preg_replace(
+                '/^(?:азс|а\.?з\.?с\.?)\s*[-–№]?\s*\d+\s*,?\s*/ui',
+                '',
+                $nameHint,
+            ) ?? $nameHint));
+            $addressHint = $addressHint !== '' ? $addressHint : null;
+        }
+
+        if ($addressHint === null && isset($draft['note']) && is_string($draft['note'])) {
+            if (preg_match('/(?:ул\.?|улица|пр\.?|просп|шоссе)\s*[^,.;]+(?:,\s*\d+[а-яa-z]?)?/ui', $draft['note'], $matches)) {
+                $addressHint = trim($matches[0]);
+            }
+        }
+
+        return [$networkHint, $nameHint, $addressHint];
+    }
+
+    /** @return array{0: array<string, mixed>|null, 1: list<array<string, mixed>>} */
+    private function findStationMatch(
+        string $networkHint,
+        string $nameHint,
+        ?string $addressHint,
+        ?float $latitude,
+        ?float $longitude,
+        bool $restrictNetwork,
+    ): array {
+        $attempts = [
+            [$nameHint, $addressHint, $restrictNetwork],
+            ['', $addressHint, $restrictNetwork],
+            [$nameHint, $addressHint, false],
+            ['', $addressHint, false],
+        ];
+
+        $match = null;
+        $candidates = [];
+
+        foreach ($attempts as [$attemptName, $attemptAddress, $attemptRestrictNetwork]) {
+            if ($attemptAddress === null && trim($attemptName) === '') {
+                continue;
+            }
+
+            $rawCandidates = $this->matcher->candidates(
+                $networkHint,
+                $attemptName,
+                $attemptAddress,
+                12,
+                $latitude,
+                $longitude,
+                restrictNetwork: $attemptRestrictNetwork,
+            );
+
+            $refinedCandidates = $this->matcher->refineForPicker($rawCandidates, $attemptName, $attemptAddress);
+            $attemptMatch = $this->matcher->bestMatch(
+                $networkHint,
+                $attemptName,
+                $attemptAddress,
+                $latitude,
+                $longitude,
+                restrictNetwork: $attemptRestrictNetwork,
+            );
+
+            if ($attemptMatch === null && count($refinedCandidates) === 1 && $refinedCandidates[0]['score'] >= 40) {
+                $attemptMatch = $refinedCandidates[0];
+            }
+
+            if ($attemptMatch !== null) {
+                $match = $attemptMatch;
+                $candidates = $refinedCandidates !== [] ? $refinedCandidates : $rawCandidates;
+                break;
+            }
+
+            if ($candidates === [] && $refinedCandidates !== []) {
+                $candidates = $refinedCandidates;
+            }
+        }
+
+        return [$match, $candidates];
     }
 
     /** @return array<string, mixed> */

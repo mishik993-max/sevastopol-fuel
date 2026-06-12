@@ -26,7 +26,7 @@ class StationMatcher
 
         $needle = $this->normalize(trim($nameHint.' '.($addressHint ?? '')));
         $addressNeedle = $this->addressNeedle($nameHint, $addressHint);
-        $number = $this->extractStationNumber($nameHint.' '.($addressHint ?? ''));
+        $number = $this->extractStationNumberForMatch($nameHint, $addressHint);
 
         $scored = [];
 
@@ -37,10 +37,19 @@ class StationMatcher
             $strictScore = $this->scoreStrict($station, $needle, $number, $networkHint);
 
             if ($strictScore >= 25) {
+                $stationHaystack = $this->normalize($station->name.' '.$station->address);
+                $matchType = $number !== null
+                    && (
+                        $this->extractStationNumberFromStation($station) === $number
+                        || preg_match('/\b'.preg_quote($number, '/').'\b/u', $stationHaystack)
+                    )
+                    ? 'number'
+                    : 'fuzzy';
+
                 $best = [
                     'station' => $station,
                     'score' => $strictScore,
-                    'match_type' => 'number',
+                    'match_type' => $matchType,
                     'distance_m' => $distanceM,
                 ];
             }
@@ -101,7 +110,7 @@ class StationMatcher
             return [];
         }
 
-        $number = $this->extractStationNumber(trim($nameHint.' '.($addressHint ?? '')));
+        $number = $this->extractStationNumberForMatch($nameHint, $addressHint);
         $addressNeedle = $this->addressNeedle($nameHint, $addressHint);
         $addressTokens = $this->addressTokens($addressNeedle);
 
@@ -143,11 +152,43 @@ class StationMatcher
                     }
                 }
 
-                return $candidate['score'] >= 35;
+                return $candidate['score'] >= 25;
             }));
 
             if ($byAddress !== []) {
                 return array_slice($byAddress, 0, 5);
+            }
+        }
+
+        if ($addressNeedle !== '' && mb_strlen($addressNeedle) >= 4) {
+            $hintHouse = $this->extractHintHouseNumber($nameHint, $addressHint);
+
+            $byAddressNeedle = array_values(array_filter($candidates, function (array $candidate) use ($addressNeedle, $hintHouse) {
+                $stationAddress = $this->normalizeAddress((string) $candidate['station']->address);
+
+                if ($stationAddress === '') {
+                    return false;
+                }
+
+                similar_text($stationAddress, $addressNeedle, $percent);
+
+                if ($percent < 35) {
+                    return false;
+                }
+
+                if ($hintHouse !== null) {
+                    $stationHouse = $this->extractHouseNumber($stationAddress);
+
+                    if ($stationHouse !== null && ! $this->houseNumbersMatch($hintHouse, $stationHouse)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }));
+
+            if ($byAddressNeedle !== []) {
+                return array_slice($byAddressNeedle, 0, 5);
             }
         }
 
@@ -193,7 +234,11 @@ class StationMatcher
             return $best['score'] >= 55 ? $best : null;
         }
 
-        $minScore = in_array($best['match_type'], ['address', 'coordinates'], true) ? 55 : 45;
+        $minScore = match ($best['match_type']) {
+            'address' => 45,
+            'coordinates' => 55,
+            default => 45,
+        };
 
         return $best['score'] >= $minScore ? $best : null;
     }
@@ -238,6 +283,14 @@ class StationMatcher
 
         if (in_array($type, ['number', 'address'], true) && $score >= 55) {
             return 3;
+        }
+
+        if ($type === 'fuzzy' && $score >= 55) {
+            return 2;
+        }
+
+        if (in_array($type, ['address'], true) && $score >= 45) {
+            return 2;
         }
 
         if ($type === 'coordinates' && $score >= 55) {
@@ -528,6 +581,21 @@ class StationMatcher
 
         if (preg_match('/№\s*(\d+)/u', $text, $matches)) {
             return $matches[1];
+        }
+
+        return null;
+    }
+
+    private function extractStationNumberForMatch(string $nameHint, ?string $addressHint): ?string
+    {
+        $nameNumber = $this->extractStationNumber($nameHint);
+
+        if ($nameNumber !== null) {
+            return $nameNumber;
+        }
+
+        if ($addressHint === null || trim($addressHint) === '') {
+            return $this->extractStationNumber($nameHint);
         }
 
         return null;
