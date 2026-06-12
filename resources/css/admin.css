@@ -1547,6 +1547,13 @@
     color: var(--muted);
 }
 
+.admin-ai-card-queue {
+    margin: 0 0 8px;
+    font-size: 0.82rem;
+    color: #f59e0b;
+    font-weight: 600;
+}
+
 .admin-ai-card-fuels {
     display: flex;
     flex-wrap: wrap;

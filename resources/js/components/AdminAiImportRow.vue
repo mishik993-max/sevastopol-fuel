@@ -93,6 +93,10 @@ function fuelStatusClass(status) {
                     </span>
                 </div>
 
+                <p v-if="row.queue_label && row.queue_label !== 'Не знаю' && row.queue_label !== 'Очереди нет'" class="admin-ai-card-queue">
+                    Очередь: {{ row.queue_label }}
+                </p>
+
                 <p v-if="formatQueuedAt(row.queued_at)" class="admin-ai-card-queued">
                     В очереди с {{ formatQueuedAt(row.queued_at) }}
                 </p>

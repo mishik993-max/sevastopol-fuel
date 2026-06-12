@@ -78,7 +78,7 @@ class AdminFuelAiService
     }
 
     /**
-     * @param  list<array{station_id: int, fuels: list<array{fuel_type: string, statuses: list<string>, sale_types: list<string>, comment?: string|null}>}>  $items
+     * @param  list<array{station_id: int, fuels: list<array{fuel_type: string, statuses: list<string>, sale_types: list<string>, queue_size?: string, comment?: string|null}>}>  $items
      * @param  list<int>  $queueIds
      * @return array{created: int, stations: list<string>}
      */
@@ -101,7 +101,7 @@ class AdminFuelAiService
                         'fuel_type' => FuelType::from($fuel['fuel_type']),
                         'status' => FuelStatus::primaryFrom($fuel['statuses']),
                         'statuses' => array_values(array_unique($fuel['statuses'])),
-                        'queue_size' => QueueSize::Unknown,
+                        'queue_size' => QueueSize::from($fuel['queue_size'] ?? QueueSize::Unknown->value),
                         'sale_types' => array_values(array_unique($fuel['sale_types'])),
                         'comment' => $fuel['comment'] ?? null,
                         'is_confirmation' => false,
@@ -144,6 +144,7 @@ class AdminFuelAiService
             $fuelsRaw = is_array($row['fuels'] ?? null) ? $row['fuels'] : [];
             $saleTypes = $this->normalizeSaleTypes($row['sale_types'] ?? ['regular']);
             $note = isset($row['note']) ? (string) $row['note'] : null;
+            $stationQueueSize = $this->normalizeQueueSize($row['queue_size'] ?? null);
 
             $fuels = [];
 
@@ -159,20 +160,27 @@ class AdminFuelAiService
                 }
 
                 $status = (string) ($fuelRow['status'] ?? 'available');
-                $statuses = in_array($status, ['available', 'low', 'none'], true) ? [$status] : ['available'];
+                $statuses = in_array($status, ['available', 'low', 'none', 'unknown'], true) ? [$status] : ['available'];
                 $fuelSaleTypes = isset($fuelRow['sale_types']) && is_array($fuelRow['sale_types'])
                     ? $this->normalizeSaleTypes($fuelRow['sale_types'])
                     : $saleTypes;
+                $fuelQueueSize = $this->normalizeQueueSize($fuelRow['queue_size'] ?? null) ?? $stationQueueSize ?? QueueSize::Unknown->value;
 
                 $fuels[] = [
                     'fuel_type' => $fuelType,
                     'fuel_label' => FuelType::from($fuelType)->label(),
                     'statuses' => $statuses,
                     'status_label' => FuelStatus::from($statuses[0])->label(),
+                    'queue_size' => $fuelQueueSize,
+                    'queue_label' => QueueSize::from($fuelQueueSize)->label(),
                     'sale_types' => $fuelSaleTypes,
                     'sale_types_labels' => SaleType::labelsFor($fuelSaleTypes),
                     'comment' => $this->buildComment($sourceMessage, $note),
                 ];
+            }
+
+            if ($fuels === [] && $stationQueueSize !== null) {
+                $fuels[] = $this->buildQueueOnlyFuel($stationQueueSize, $saleTypes, $sourceMessage, $note);
             }
 
             if ($fuels === []) {
@@ -180,6 +188,8 @@ class AdminFuelAiService
             }
 
             $fuels = $this->dedupeFuels($fuels);
+
+            $entryQueueSize = $stationQueueSize ?? $fuels[0]['queue_size'] ?? QueueSize::Unknown->value;
 
             $match = $this->matcher->bestMatch($networkHint, $nameHint, $addressHint);
             $candidates = $this->matcher->candidates($networkHint, $nameHint, $addressHint, 5);
@@ -189,6 +199,8 @@ class AdminFuelAiService
                 'name_hint' => $nameHint,
                 'address_hint' => $addressHint,
                 'raw' => trim($nameHint.($addressHint ? " ({$addressHint})" : '')),
+                'queue_size' => $entryQueueSize,
+                'queue_label' => QueueSize::from($entryQueueSize)->label(),
                 'fuels' => $fuels,
                 'selected' => $match !== null,
                 'station_id' => $match['station']->id ?? null,
@@ -231,9 +243,10 @@ class AdminFuelAiService
     {
         $fuelTypes = implode(', ', array_map(fn (FuelType $type) => $type->value, FuelType::cases()));
         $saleTypes = implode(', ', array_map(fn (SaleType $type) => $type->value, SaleType::cases()));
+        $queueSizes = implode(', ', array_map(fn (QueueSize $size) => $size->value, QueueSize::cases()));
 
         return <<<PROMPT
-Ты помощник админки карты АЗС Севастополя. Разбираешь сообщения о наличии топлива и возвращаешь ТОЛЬКО JSON без markdown.
+Ты помощник админки карты АЗС Севастополя. Разбираешь сообщения о наличии топлива, очередях и продаже и возвращаешь ТОЛЬКО JSON без markdown.
 
 Схема ответа:
 {
@@ -244,6 +257,7 @@ class AdminFuelAiService
     {
       "name_hint": "как в сообщении, например АЗС 61 Верхнесадовое",
       "address_hint": "улица или район если есть",
+      "queue_size": "30_plus",
       "sale_types": ["regular"],
       "note": "доп. детали по этой АЗС",
       "fuels": [
@@ -262,6 +276,17 @@ class AdminFuelAiService
 - ДТ Ultra, ДТ+ -> dt_plus
 - газ, пропан -> gas
 
+Правила queue_size (строго из списка): {$queueSizes}
+- очереди нет, без очереди -> none
+- до 10 машин, небольшая очередь -> up_to_10
+- 10-30 машин, средняя очередь -> 10_30
+- больше 30, длинная очередь, с конца улицы, стою час/два, с самого верха проспекта -> 30_plus
+- если про очередь пишут, но масштаб неясен -> unknown
+
+Если сообщение ТОЛЬКО про очередь (без типов топлива) — всё равно создай stations с queue_size и пустым fuels: [].
+Пример: «Очередь на Семипалатинскую Атан с Победы с самого верха, стою 2 часа» ->
+name_hint: «АЗС Семипалатинская Атан», address_hint: «проспект Победы», network: «Атан», queue_size: «30_plus», fuels: [].
+
 Правила sale_types (строго из списка): {$saleTypes}
 - свободная продажа, обычная -> regular
 - талоны -> voucher
@@ -270,7 +295,7 @@ class AdminFuelAiService
 Если в сообщении «свободная продажа» для списка АЗС — sale_types: ["regular"].
 Если для сети указано «только по QR» без списка АЗС — добавь это в network_notes, не создавай stations для всех АЗС.
 
-status: available (топливо есть), low (мало), none (нет). По умолчанию available для явного списка «будет в продаже».
+status: available (топливо есть), low (мало), none (нет), unknown (неизвестно; для сообщений только про очередь). По умолчанию available для явного списка «будет в продаже».
 
 Каждая numbered строка (1️⃣, 2., и т.д.) — отдельный элемент stations.
 Не выдумывай АЗС, которых нет в тексте.
@@ -296,6 +321,35 @@ PROMPT;
     private function isValidFuelType(string $fuelType): bool
     {
         return FuelType::tryFrom($fuelType) !== null;
+    }
+
+    private function normalizeQueueSize(mixed $raw): ?string
+    {
+        if (! is_string($raw) || trim($raw) === '') {
+            return null;
+        }
+
+        return QueueSize::tryFrom(trim($raw))?->value;
+    }
+
+    /** @return array<string, mixed> */
+    private function buildQueueOnlyFuel(
+        string $queueSize,
+        array $saleTypes,
+        string $sourceMessage,
+        ?string $note,
+    ): array {
+        return [
+            'fuel_type' => FuelType::A95->value,
+            'fuel_label' => FuelType::A95->label(),
+            'statuses' => [FuelStatus::Unknown->value],
+            'status_label' => 'Только очередь',
+            'queue_size' => $queueSize,
+            'queue_label' => QueueSize::from($queueSize)->label(),
+            'sale_types' => $saleTypes,
+            'sale_types_labels' => SaleType::labelsFor($saleTypes),
+            'comment' => $this->buildComment($sourceMessage, $note),
+        ];
     }
 
     private function buildComment(string $sourceMessage, ?string $note): ?string
@@ -418,6 +472,8 @@ PROMPT;
             'name_hint' => $nameHint,
             'address_hint' => $addressHint,
             'raw' => $item->raw,
+            'queue_size' => $fuels[0]['queue_size'] ?? QueueSize::Unknown->value,
+            'queue_label' => QueueSize::from($fuels[0]['queue_size'] ?? QueueSize::Unknown->value)->label(),
             'fuels' => $fuels,
             'selected' => $match !== null,
             'station_id' => $match['station']->id ?? null,

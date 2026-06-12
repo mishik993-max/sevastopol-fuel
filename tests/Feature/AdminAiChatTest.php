@@ -106,6 +106,76 @@ class AdminAiChatTest extends TestCase
         $this->assertDatabaseCount('fuel_import_queue', 0);
     }
 
+    public function test_ai_chat_parse_extracts_queue_for_queue_only_message(): void
+    {
+        $station = Station::query()->create([
+            'name' => 'АТАН Семипалатинская',
+            'network' => 'Атан',
+            'address' => 'проспект Победы, Семипалатинская',
+            'latitude' => 44.59,
+            'longitude' => 33.52,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            'https://api.timeweb.ai/v1/chat/completions' => Http::response([
+                'choices' => [[
+                    'message' => [
+                        'content' => json_encode([
+                            'summary' => 'Большая очередь на Атан Семипалатинская',
+                            'network' => 'Атан',
+                            'network_notes' => [],
+                            'stations' => [[
+                                'name_hint' => 'АЗС Семипалатинская Атан',
+                                'address_hint' => 'проспект Победы',
+                                'queue_size' => '30_plus',
+                                'note' => 'с самого верха, ждут около 2 часов',
+                                'fuels' => [],
+                            ]],
+                        ], JSON_UNESCAPED_UNICODE),
+                    ],
+                ]],
+            ], 200),
+        ]);
+
+        $parse = $this->withHeader('X-Admin-Token', 'test-admin-secret')
+            ->postJson('/api/admin/ai-chat/parse', [
+                'message' => 'Очередь на семипалатенскую атан с победы с самого верха. Стою уже 2 часа',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.items.0.station_id', $station->id)
+            ->assertJsonPath('data.items.0.queue_size', '30_plus')
+            ->assertJsonPath('data.items.0.fuels.0.queue_size', '30_plus')
+            ->assertJsonPath('data.items.0.fuels.0.statuses.0', 'unknown');
+
+        $items = $parse->json('data.items');
+
+        $this->withHeader('X-Admin-Token', 'test-admin-secret')
+            ->postJson('/api/admin/ai-chat/apply', [
+                'items' => [[
+                    'station_id' => $items[0]['station_id'],
+                    'fuels' => [[
+                        'fuel_type' => $items[0]['fuels'][0]['fuel_type'],
+                        'statuses' => $items[0]['fuels'][0]['statuses'],
+                        'sale_types' => $items[0]['fuels'][0]['sale_types'],
+                        'queue_size' => $items[0]['fuels'][0]['queue_size'],
+                        'comment' => $items[0]['fuels'][0]['comment'],
+                    ]],
+                ]],
+                'queue_ids' => [$items[0]['queue_id']],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.created', 1);
+
+        $this->assertDatabaseHas('reports', [
+            'station_id' => $station->id,
+            'fuel_type' => 'a95',
+            'queue_size' => '30_plus',
+            'status' => 'unknown',
+        ]);
+    }
+
     public function test_ai_chat_queue_lists_pending_items(): void
     {
         Station::query()->create([

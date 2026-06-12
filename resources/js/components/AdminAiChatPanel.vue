@@ -121,6 +121,7 @@ async function applyQueue() {
             fuel_type: fuel.fuel_type,
             statuses: fuel.statuses,
             sale_types: fuel.sale_types,
+            queue_size: fuel.queue_size,
             comment: fuel.comment,
         })),
     }));

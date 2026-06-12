@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\FuelStatus;
 use App\Enums\FuelType;
+use App\Enums\QueueSize;
 use App\Enums\SaleType;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -28,7 +29,9 @@ class AdminAiChatApplyRequest extends FormRequest
                 FuelStatus::Available->value,
                 FuelStatus::Low->value,
                 FuelStatus::None->value,
+                FuelStatus::Unknown->value,
             ])],
+            'items.*.fuels.*.queue_size' => ['sometimes', 'string', Rule::enum(QueueSize::class)],
             'items.*.fuels.*.sale_types' => ['required', 'array', 'min:1'],
             'items.*.fuels.*.sale_types.*' => ['required', 'string', Rule::enum(SaleType::class)],
             'items.*.fuels.*.comment' => ['nullable', 'string', 'max:500'],
