@@ -77,6 +77,7 @@ const fuelReports = computed(() => {
         canister_policy_label: activeFuel.value.canister_policy_label,
         queue_label: activeFuel.value.queue_label,
         comment: activeFuel.value.comment,
+        source_label: activeFuel.value.source_label,
         photo_url: activeFuel.value.photo_url,
         is_confirmation: activeFuel.value.is_confirmation,
     }];
@@ -130,6 +131,10 @@ function formatReportTime(iso) {
 function reportMeta(item) {
     const parts = [];
 
+    if (item.source_label) {
+        parts.push(item.source_label);
+    }
+
     if (item.is_confirmation) {
         parts.push('Подтверждение');
     }
@@ -149,6 +154,14 @@ function reportMeta(item) {
     }
 
     return parts;
+}
+
+function displayComment(item) {
+    if (!item.comment || item.source_label) {
+        return null;
+    }
+
+    return item.comment;
 }
 
 function showQueue(item) {
@@ -377,8 +390,8 @@ function onToggleFavorite() {
                             Очередь: {{ item.queue_label }}
                         </p>
 
-                        <p v-if="item.comment" class="report-card-comment">
-                            {{ item.comment }}
+                        <p v-if="displayComment(item)" class="report-card-comment">
+                            {{ displayComment(item) }}
                         </p>
                     </div>
 

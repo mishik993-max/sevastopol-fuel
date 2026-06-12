@@ -118,6 +118,7 @@ class StationStatusService
             'queue_size' => $latest?->queue_size?->value,
             'queue_label' => $latest?->queue_size?->label(),
             'comment' => $latest?->comment,
+            'source_label' => SevtechFuelSyncService::sourceLabelFor($latest?->comment),
             'is_confirmation' => (bool) ($latest?->is_confirmation ?? false),
         ];
     }
@@ -190,6 +191,7 @@ class StationStatusService
                             'canister_policy_label' => $r->canister_policy?->label(),
                             'queue_label' => $r->queue_size?->label(),
                             'comment' => $r->comment,
+                            'source_label' => SevtechFuelSyncService::sourceLabelFor($r->comment),
                             'photo_url' => $r->photoUrl(),
                             'is_confirmation' => $r->is_confirmation,
                         ])

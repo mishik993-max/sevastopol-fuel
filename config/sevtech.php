@@ -24,4 +24,7 @@ return [
     'dedup_minutes' => (int) env('SEVTECH_FUEL_DEDUP_MINUTES', 15),
 
     'schedule_minutes' => (int) env('SEVTECH_FUEL_SCHEDULE_MINUTES', 0),
+
+    /** Обновлять название, сеть и external_id АЗС при синхронизации */
+    'update_stations' => env('SEVTECH_UPDATE_STATIONS', true),
 ];

@@ -330,6 +330,10 @@ class AdminController extends Controller
             'station_ids.*' => ['integer', 'exists:stations,id'],
             'items' => ['sometimes', 'array'],
             'items.*.station_id' => ['required', 'integer', 'exists:stations,id'],
+            'items.*.external_id' => ['sometimes', 'string'],
+            'items.*.name' => ['sometimes', 'string'],
+            'items.*.address' => ['sometimes', 'nullable', 'string'],
+            'items.*.network' => ['sometimes', 'string'],
             'items.*.fuels' => ['required', 'array'],
             'items.*.fuels.*.fuel_type' => ['required', 'string'],
             'items.*.fuels.*.new_status' => ['sometimes', 'string'],
@@ -347,7 +351,8 @@ class AdminController extends Controller
         }
 
         return response()->json([
-            'message' => "Создано отчётов: {$result['created']}",
+            'message' => "Создано отчётов: {$result['created']}"
+                .(($result['updated_stations'] ?? []) !== [] ? ', обновлено АЗС: '.count($result['updated_stations']) : ''),
             'data' => $result,
         ]);
     }
@@ -356,6 +361,10 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'station_id' => ['required', 'integer', 'exists:stations,id'],
+            'external_id' => ['sometimes', 'string'],
+            'name' => ['sometimes', 'string'],
+            'address' => ['sometimes', 'nullable', 'string'],
+            'network' => ['sometimes', 'string'],
             'fuels' => ['required', 'array', 'min:1'],
             'fuels.*.fuel_type' => ['required', 'string'],
             'fuels.*.status' => ['sometimes', 'string'],
@@ -365,7 +374,11 @@ class AdminController extends Controller
 
         try {
             return response()->json([
-                'data' => $this->sevtechFuel->resolveFuels($validated['station_id'], $validated['fuels']),
+                'data' => $this->sevtechFuel->resolveFuels(
+                    $validated['station_id'],
+                    $validated['fuels'],
+                    collect($validated)->only(['external_id', 'name', 'address', 'network'])->filter()->all(),
+                ),
             ]);
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 422);

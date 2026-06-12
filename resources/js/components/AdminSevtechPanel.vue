@@ -20,6 +20,9 @@ const selectedCount = computed(() => rows.value.filter((row) => row.selected && 
 const reportCount = computed(() => rows.value
     .filter((row) => row.selected && row.station_id)
     .reduce((sum, row) => sum + row.fuels.filter((fuel) => fuel.changed).length, 0));
+const profileUpdateCount = computed(() => rows.value
+    .filter((row) => row.selected && row.station_id && row.station_profile_update)
+    .length);
 
 function mapUrl(stationId) {
     return stationId ? `/?station=${stationId}` : '#';
@@ -169,6 +172,10 @@ async function onStationChange(row) {
             headers: props.authHeaders(),
             body: JSON.stringify({
                 station_id: row.station_id,
+                external_id: row.external_id,
+                name: row.name,
+                address: row.address,
+                network: row.network,
                 fuels: sevtechFuelsPayload(row),
             }),
         });
@@ -179,9 +186,10 @@ async function onStationChange(row) {
         const data = json.data;
         row.station_label = data.station_label;
         row.station_address = data.station_address;
+        row.station_profile_update = data.station_profile_update;
         row.fuels = data.fuels;
         row.will_create = data.will_create;
-        row.selected = Boolean(data.will_create);
+        row.selected = Boolean(data.selected);
         row.confidence = selectedStation(row)?.score ?? null;
         row.match_type = selectedStation(row)?.match_type ?? 'manual';
         row.match_distance_m = selectedStation(row)?.distance_m ?? null;
@@ -194,9 +202,13 @@ async function onStationChange(row) {
 
 async function applySync() {
     const items = rows.value
-        .filter((row) => row.selected && row.station_id)
+        .filter((row) => row.selected && row.station_id && (row.will_create || row.station_profile_update))
         .map((row) => ({
             station_id: row.station_id,
+            external_id: row.external_id,
+            name: row.name,
+            address: row.address,
+            network: row.network,
             fuels: row.fuels,
         }));
 
@@ -206,7 +218,11 @@ async function applySync() {
         return;
     }
 
-    const ok = window.confirm(`Обновить ${reportCount.value} отчётов для ${items.length} АЗС?`);
+    const ok = window.confirm(
+        `Обновить ${reportCount.value} отчётов`
+        + `${profileUpdateCount.value ? ` и ${profileUpdateCount.value} карточек АЗС` : ''}`
+        + ` для ${items.length} позиций?`,
+    );
 
     if (!ok) return;
 
@@ -316,6 +332,10 @@ function optionLabel(item) {
                 <span class="admin-stat-label">Обновить</span>
             </div>
             <div class="admin-stat-card admin-stat-card--static">
+                <span class="admin-stat-value">{{ preview.summary.will_update_profile ?? 0 }}</span>
+                <span class="admin-stat-label">Переименовать</span>
+            </div>
+            <div class="admin-stat-card admin-stat-card--static">
                 <span class="admin-stat-value">{{ preview.summary.unmatched }}</span>
                 <span class="admin-stat-label">Без пары</span>
             </div>
@@ -329,7 +349,7 @@ function optionLabel(item) {
                 :class="{ 'admin-ai-card--warn': !row.station_id }"
             >
                 <div class="admin-ai-card-top">
-                    <label v-if="row.station_id && row.will_create" class="admin-ai-card-check">
+                    <label v-if="row.station_id && (row.will_create || row.station_profile_update)" class="admin-ai-card-check">
                         <input v-model="row.selected" type="checkbox" :disabled="syncing || rebindingId === row.external_id" />
                     </label>
                     <div v-else class="admin-ai-card-check" />
@@ -351,6 +371,10 @@ function optionLabel(item) {
                             </span>
                         </div>
                         <p v-if="row.address" class="admin-ai-card-address">{{ row.address }}</p>
+                        <p v-if="row.station_profile_update" class="admin-sevtech-profile">
+                            В базе: {{ row.station_profile_update.current_label }}
+                            → {{ row.station_profile_update.new_label }}
+                        </p>
                         <p class="admin-sevtech-fuels">{{ fuelsSummary(row.fuels) }}</p>
                     </div>
                 </div>

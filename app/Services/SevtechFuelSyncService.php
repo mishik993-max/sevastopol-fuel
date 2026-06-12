@@ -11,12 +11,49 @@ use Illuminate\Support\Facades\DB;
 
 class SevtechFuelSyncService
 {
-    private const COMMENT_PREFIX = 'Импорт SevTech map (fuel.sevtech.org)';
+    private const COMMENT_PREFIX = 'Официальная карта ТЭС';
+
+    private const LEGACY_COMMENT_PREFIX = 'Импорт SevTech map';
 
     public function __construct(
         private SevtechFuelClient $client,
         private StationMatcher $matcher,
     ) {}
+
+    public static function isSevtechComment(?string $comment): bool
+    {
+        if ($comment === null || trim($comment) === '') {
+            return false;
+        }
+
+        return str_starts_with($comment, self::COMMENT_PREFIX)
+            || str_starts_with($comment, self::LEGACY_COMMENT_PREFIX);
+    }
+
+    public static function sourceLabelFor(?string $comment): ?string
+    {
+        if (! self::isSevtechComment($comment)) {
+            return null;
+        }
+
+        $marker = self::COMMENT_PREFIX.' · ';
+
+        if (str_starts_with((string) $comment, $marker)) {
+            return 'Карта ТЭС · '.mb_substr((string) $comment, mb_strlen($marker));
+        }
+
+        return 'Карта ТЭС';
+    }
+
+    /** @param  array<string, mixed>  $item */
+    public static function reportCommentFor(array $item): string
+    {
+        $title = trim((string) ($item['name'] ?? ''));
+
+        return $title !== ''
+            ? self::COMMENT_PREFIX.' · '.$title
+            : self::COMMENT_PREFIX;
+    }
 
     /** @return array<string, mixed> */
     public function preview(): array
@@ -28,6 +65,7 @@ class SevtechFuelSyncService
 
     /** @param  list<int>  $stationIds
      * @param  list<array<string, mixed>>  $items
+     * @return array{created: int, skipped: int, stations: list<string>, updated_stations: list<string>}
      */
     public function sync(array $stationIds = [], array $items = []): array
     {
@@ -42,9 +80,10 @@ class SevtechFuelSyncService
     }
 
     /** @param  list<array<string, mixed>>  $sevtechFuels
+     * @param  array<string, mixed>  $sevtechItem
      * @return array<string, mixed>
      */
-    public function resolveFuels(int $stationId, array $sevtechFuels): array
+    public function resolveFuels(int $stationId, array $sevtechFuels, array $sevtechItem = []): array
     {
         $station = Station::query()->find($stationId);
 
@@ -63,27 +102,32 @@ class SevtechFuelSyncService
         }, $sevtechFuels);
 
         $fuelPreview = $this->buildFuelPreview($stationId, $normalized);
+        $profileUpdate = $sevtechItem !== []
+            ? $this->previewStationProfileUpdate($station, $sevtechItem)
+            : null;
 
         return [
             'station_id' => $stationId,
             'station_label' => "{$station->network} · {$station->name}",
             'station_address' => $station->address,
+            'station_profile_update' => $profileUpdate,
             'fuels' => $fuelPreview['fuels'],
             'will_create' => $fuelPreview['will_create'],
-            'selected' => $fuelPreview['will_create'],
+            'selected' => ($fuelPreview['will_create'] || $profileUpdate !== null),
         ];
     }
 
     /** @param  list<array<string, mixed>>  $items
-     * @return array{created: int, skipped: int, stations: list<string>}
+     * @return array{created: int, skipped: int, stations: list<string>, updated_stations: list<string>}
      */
     private function syncExplicitItems(array $items): array
     {
         $created = 0;
         $skipped = 0;
         $stations = [];
+        $updatedStations = [];
 
-        DB::transaction(function () use ($items, &$created, &$skipped, &$stations) {
+        DB::transaction(function () use ($items, &$created, &$skipped, &$stations, &$updatedStations) {
             foreach ($items as $item) {
                 $stationId = (int) ($item['station_id'] ?? 0);
                 $station = Station::query()->find($stationId);
@@ -91,6 +135,15 @@ class SevtechFuelSyncService
                 if ($station === null) {
                     continue;
                 }
+
+                $profileUpdate = $this->applySevtechStationProfile($station, $item);
+
+                if ($profileUpdate !== null) {
+                    $updatedStations[] = $profileUpdate['label'];
+                }
+
+                $comment = self::reportCommentFor($item);
+                $createdForStation = false;
 
                 foreach ($item['fuels'] as $fuel) {
                     if (! ($fuel['changed'] ?? false)) {
@@ -116,15 +169,19 @@ class SevtechFuelSyncService
                         'statuses' => [$newStatus],
                         'queue_size' => QueueSize::Unknown,
                         'sale_types' => $fuel['sale_types'] ?? ['qr'],
-                        'comment' => self::COMMENT_PREFIX,
+                        'comment' => $comment,
                         'is_confirmation' => false,
                         'created_at' => now(),
                     ]);
 
                     $created++;
+                    $createdForStation = true;
                 }
 
-                $stations[] = "{$station->network} · {$station->name}";
+                if ($createdForStation || $profileUpdate !== null) {
+                    $station->refresh();
+                    $stations[] = "{$station->network} · {$station->name}";
+                }
             }
         });
 
@@ -132,20 +189,22 @@ class SevtechFuelSyncService
             'created' => $created,
             'skipped' => $skipped,
             'stations' => array_values(array_unique($stations)),
+            'updated_stations' => array_values(array_unique($updatedStations)),
         ];
     }
 
     /** @param  list<array<string, mixed>>  $items
      * @param  array<int, int>|null  $selectedIds
-     * @return array{created: int, skipped: int, stations: list<string>}
+     * @return array{created: int, skipped: int, stations: list<string>, updated_stations: list<string>}
      */
     private function syncPreviewItems(array $items, ?array $selectedIds): array
     {
         $created = 0;
         $skipped = 0;
         $stations = [];
+        $updatedStations = [];
 
-        DB::transaction(function () use ($items, $selectedIds, &$created, &$skipped, &$stations) {
+        DB::transaction(function () use ($items, $selectedIds, &$created, &$skipped, &$stations, &$updatedStations) {
             foreach ($items as $item) {
                 if ($item['station_id'] === null) {
                     continue;
@@ -155,17 +214,26 @@ class SevtechFuelSyncService
                     continue;
                 }
 
-                if (! $item['will_create']) {
-                    $skipped++;
-
-                    continue;
-                }
-
                 $station = Station::query()->find($item['station_id']);
 
                 if ($station === null) {
                     continue;
                 }
+
+                $profileUpdate = $this->applySevtechStationProfile($station, $item);
+
+                if ($profileUpdate !== null) {
+                    $updatedStations[] = $profileUpdate['label'];
+                }
+
+                if (! $item['will_create'] && $profileUpdate === null) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                $comment = self::reportCommentFor($item);
+                $createdForStation = false;
 
                 foreach ($item['fuels'] as $fuel) {
                     if (! ($fuel['changed'] ?? false)) {
@@ -185,15 +253,19 @@ class SevtechFuelSyncService
                         'statuses' => [$fuel['new_status']],
                         'queue_size' => QueueSize::Unknown,
                         'sale_types' => $fuel['sale_types'],
-                        'comment' => self::COMMENT_PREFIX,
+                        'comment' => $comment,
                         'is_confirmation' => false,
                         'created_at' => now(),
                     ]);
 
                     $created++;
+                    $createdForStation = true;
                 }
 
-                $stations[] = "{$station->network} · {$station->name}";
+                if ($createdForStation || $profileUpdate !== null) {
+                    $station->refresh();
+                    $stations[] = "{$station->network} · {$station->name}";
+                }
             }
         });
 
@@ -201,7 +273,95 @@ class SevtechFuelSyncService
             'created' => $created,
             'skipped' => $skipped,
             'stations' => array_values(array_unique($stations)),
+            'updated_stations' => array_values(array_unique($updatedStations)),
         ];
+    }
+
+    /** @param  array<string, mixed>  $item
+     * @return array{label: string, changes: array<string, array{from: string|null, to: string}>}|null
+     */
+    private function applySevtechStationProfile(Station $station, array $item): ?array
+    {
+        if (! config('sevtech.update_stations', true)) {
+            return null;
+        }
+
+        $patch = $this->stationProfilePatch($station, $item);
+
+        if ($patch === []) {
+            return null;
+        }
+
+        $beforeLabel = "{$station->network} · {$station->name}";
+        $station->update($patch);
+        $station->refresh();
+
+        return [
+            'label' => "{$beforeLabel} → {$station->network} · {$station->name}",
+            'changes' => $patch,
+        ];
+    }
+
+    /** @param  array<string, mixed>  $item
+     * @return array<string, string>
+     */
+    private function stationProfilePatch(Station $station, array $item): array
+    {
+        $patch = [];
+        $network = trim((string) ($item['network'] ?? config('sevtech.network_hint')));
+        $name = trim((string) ($item['name'] ?? ''));
+        $address = trim((string) ($item['address'] ?? ''));
+        $externalId = trim((string) ($item['external_id'] ?? ''));
+
+        if ($network !== '' && ! $this->textEquals($station->network, $network)) {
+            $patch['network'] = $network;
+        }
+
+        if ($name !== '' && ! $this->textEquals($station->name, $name)) {
+            $patch['name'] = $name;
+        }
+
+        if ($externalId !== '' && $station->external_id !== $externalId) {
+            $patch['external_id'] = $externalId;
+        }
+
+        if ($address !== '' && $this->shouldUpdateAddress($station->address, $address)) {
+            $patch['address'] = $address;
+        }
+
+        return $patch;
+    }
+
+    private function shouldUpdateAddress(?string $current, string $sevtechAddress): bool
+    {
+        $current = trim((string) $current);
+
+        if ($current === '') {
+            return true;
+        }
+
+        if ($this->textEquals($current, $sevtechAddress)) {
+            return false;
+        }
+
+        $normalizedCurrent = $this->normalizeText($current);
+        $normalizedSevtech = $this->normalizeText($sevtechAddress);
+
+        return ! str_contains($normalizedCurrent, $normalizedSevtech)
+            && ! str_contains($normalizedSevtech, $normalizedCurrent);
+    }
+
+    private function textEquals(?string $left, ?string $right): bool
+    {
+        return $this->normalizeText((string) $left) === $this->normalizeText((string) $right);
+    }
+
+    private function normalizeText(string $value): string
+    {
+        $value = mb_strtolower(trim($value));
+        $value = str_replace('ё', 'е', $value);
+
+        return preg_replace('/\s+/u', ' ', $value) ?? $value;
     }
 
     /** @param  list<array<string, mixed>>  $items
@@ -214,6 +374,7 @@ class SevtechFuelSyncService
         $unmatched = 0;
         $willCreate = 0;
         $unchanged = 0;
+        $willUpdateProfile = 0;
 
         foreach ($items as $item) {
             $row = $this->previewRow($item);
@@ -230,6 +391,10 @@ class SevtechFuelSyncService
             } elseif ($row['station_id'] !== null) {
                 $unchanged++;
             }
+
+            if ($row['station_profile_update'] !== null) {
+                $willUpdateProfile++;
+            }
         }
 
         return [
@@ -241,6 +406,7 @@ class SevtechFuelSyncService
                 'unmatched' => $unmatched,
                 'will_create' => $willCreate,
                 'unchanged' => $unchanged,
+                'will_update_profile' => $willUpdateProfile,
             ],
             'items' => $rows,
             'station_catalog' => $this->stationCatalog(),
@@ -272,6 +438,70 @@ class SevtechFuelSyncService
      */
     private function previewRow(array $item): array
     {
+        $match = $this->resolveMatch($item);
+        $station = $match['station'] ?? null;
+        $stationId = $station?->id;
+        $fuelPreview = $this->buildFuelPreview($stationId, $item['fuels']);
+        $profileUpdate = $station !== null ? $this->previewStationProfileUpdate($station, $item) : null;
+
+        return [
+            'external_id' => $item['external_id'],
+            'name' => $item['name'],
+            'address' => $item['address'],
+            'network' => $item['network'] ?? config('sevtech.network_hint'),
+            'latitude' => $item['latitude'],
+            'longitude' => $item['longitude'],
+            'station_id' => $stationId,
+            'station_label' => $station ? "{$station->network} · {$station->name}" : null,
+            'station_address' => $station?->address,
+            'confidence' => $match['score'] ?? null,
+            'match_type' => $match['match_type'] ?? null,
+            'match_distance_m' => $match['distance_m'] ?? null,
+            'station_profile_update' => $profileUpdate,
+            'candidates' => array_map(fn (array $candidate) => [
+                'station_id' => $candidate['station']->id,
+                'label' => "{$candidate['station']->network} · {$candidate['station']->name}",
+                'address' => $candidate['station']->address,
+                'score' => $candidate['score'],
+                'match_type' => $candidate['match_type'],
+                'distance_m' => $candidate['distance_m'] ?? null,
+            ], $this->matcher->candidates(
+                (string) ($item['network'] ?? config('sevtech.network_hint')),
+                (string) $item['name'],
+                $item['address'] ?? null,
+                12,
+                isset($item['latitude']) ? (float) $item['latitude'] : null,
+                isset($item['longitude']) ? (float) $item['longitude'] : null,
+                restrictNetwork: false,
+            )),
+            'fuels' => $fuelPreview['fuels'],
+            'will_create' => $fuelPreview['will_create'],
+            'selected' => ($fuelPreview['will_create'] || $profileUpdate !== null) && $stationId !== null,
+        ];
+    }
+
+    /** @param  array<string, mixed>  $item
+     * @return array{station?: Station, score?: float, match_type?: string, distance_m?: int}
+     */
+    private function resolveMatch(array $item): array
+    {
+        $externalId = trim((string) ($item['external_id'] ?? ''));
+
+        if ($externalId !== '') {
+            $linked = Station::query()
+                ->where('external_id', $externalId)
+                ->where('is_active', true)
+                ->first();
+
+            if ($linked !== null) {
+                return [
+                    'station' => $linked,
+                    'score' => 100.0,
+                    'match_type' => 'external_id',
+                ];
+            }
+        }
+
         $match = $this->matcher->bestMatch(
             (string) ($item['network'] ?? config('sevtech.network_hint')),
             (string) $item['name'],
@@ -281,44 +511,45 @@ class SevtechFuelSyncService
             restrictNetwork: false,
         );
 
-        $candidates = $this->matcher->candidates(
-            (string) ($item['network'] ?? config('sevtech.network_hint')),
-            (string) $item['name'],
-            $item['address'] ?? null,
-            12,
-            isset($item['latitude']) ? (float) $item['latitude'] : null,
-            isset($item['longitude']) ? (float) $item['longitude'] : null,
-            restrictNetwork: false,
-        );
-
-        $stationId = $match['station']->id ?? null;
-        $fuelPreview = $this->buildFuelPreview($stationId, $item['fuels']);
+        if ($match === null) {
+            return [];
+        }
 
         return [
-            'external_id' => $item['external_id'],
-            'name' => $item['name'],
-            'address' => $item['address'],
-            'latitude' => $item['latitude'],
-            'longitude' => $item['longitude'],
-            'station_id' => $stationId,
-            'station_label' => $match
-                ? "{$match['station']->network} · {$match['station']->name}"
-                : null,
-            'station_address' => $match ? $match['station']->address : null,
-            'confidence' => $match['score'] ?? null,
-            'match_type' => $match['match_type'] ?? null,
-            'match_distance_m' => $match['distance_m'] ?? null,
-            'candidates' => array_map(fn (array $candidate) => [
-                'station_id' => $candidate['station']->id,
-                'label' => "{$candidate['station']->network} · {$candidate['station']->name}",
-                'address' => $candidate['station']->address,
-                'score' => $candidate['score'],
-                'match_type' => $candidate['match_type'],
-                'distance_m' => $candidate['distance_m'] ?? null,
-            ], $candidates),
-            'fuels' => $fuelPreview['fuels'],
-            'will_create' => $fuelPreview['will_create'],
-            'selected' => $fuelPreview['will_create'] && $stationId !== null,
+            'station' => $match['station'],
+            'score' => $match['score'],
+            'match_type' => $match['match_type'],
+            'distance_m' => $match['distance_m'] ?? null,
+        ];
+    }
+
+    /** @param  array<string, mixed>  $item
+     * @return array{current_label: string, new_label: string, changes: array<string, array{from: string|null, to: string}>}|null
+     */
+    private function previewStationProfileUpdate(Station $station, array $item): ?array
+    {
+        if (! config('sevtech.update_stations', true)) {
+            return null;
+        }
+
+        $patch = $this->stationProfilePatch($station, $item);
+
+        if ($patch === []) {
+            return null;
+        }
+
+        $nextNetwork = $patch['network'] ?? $station->network;
+        $nextName = $patch['name'] ?? $station->name;
+
+        return [
+            'current_label' => "{$station->network} · {$station->name}",
+            'new_label' => "{$nextNetwork} · {$nextName}",
+            'changes' => collect($patch)
+                ->mapWithKeys(fn (string $value, string $field) => [$field => [
+                    'from' => $station->{$field},
+                    'to' => $value,
+                ]])
+                ->all(),
         ];
     }
 
@@ -397,7 +628,10 @@ class SevtechFuelSyncService
         $recent = Report::query()
             ->where('station_id', $stationId)
             ->where('fuel_type', $fuelType)
-            ->where('comment', 'like', self::COMMENT_PREFIX.'%')
+            ->where(function ($query) {
+                $query->where('comment', 'like', self::COMMENT_PREFIX.'%')
+                    ->orWhere('comment', 'like', self::LEGACY_COMMENT_PREFIX.'%');
+            })
             ->where('created_at', '>=', now()->subMinutes(config('sevtech.dedup_minutes')))
             ->orderByDesc('created_at')
             ->first();

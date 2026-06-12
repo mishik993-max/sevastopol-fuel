@@ -29,6 +29,10 @@ class SyncSevtechFuel extends Command
 
         $this->info("Создано отчётов: {$result['created']}, пропущено без изменений: {$result['skipped']}");
 
+        if (($result['updated_stations'] ?? []) !== []) {
+            $this->info('Обновлены данные АЗС: '.implode('; ', $result['updated_stations']));
+        }
+
         return self::SUCCESS;
     }
 }

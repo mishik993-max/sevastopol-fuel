@@ -290,6 +290,61 @@ class SevtechFuelSyncTest extends TestCase
             ->assertJsonPath('data.items.0.match_distance_m', 0);
     }
 
+    public function test_sevtech_sync_updates_station_profile_from_map(): void
+    {
+        config(['sevtech.update_stations' => true]);
+
+        $station = Station::query()->create([
+            'name' => 'СНП',
+            'network' => 'СНП',
+            'address' => 'ул. Городское шоссе 15, Севастополь, Россия',
+            'latitude' => 44.547508,
+            'longitude' => 33.534253,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            'https://fuel.sevtech.org/map/a' => Http::response([
+                'gas_stations' => [[
+                    'id' => 'gs5',
+                    'uuid' => '38b8bdc5-5246-4c13-abce-c47128836221',
+                    'title' => 'Гор.шоссе',
+                    'address' => 'Гор.шоссе, 15',
+                    'lat_lng' => ['lat' => 44.547508, 'lng' => 33.534253],
+                    'a92' => 'FUEL_STATUS_AVAILABLE',
+                    'a92_percent' => 75,
+                    'a95' => 'FUEL_STATUS_UNAVAILABLE',
+                    'a95_ultra' => 'FUEL_STATUS_UNAVAILABLE',
+                    'diesel' => 'FUEL_STATUS_UNAVAILABLE',
+                    'diesel_ultra' => 'FUEL_STATUS_UNAVAILABLE',
+                    'a100' => 'FUEL_STATUS_UNAVAILABLE',
+                    'lpg' => 'FUEL_STATUS_UNAVAILABLE',
+                ]],
+            ], 200),
+        ]);
+
+        $this->withHeader('X-Admin-Token', 'test-admin-secret')
+            ->postJson('/api/admin/sevtech/sync', [
+                'station_ids' => [$station->id],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.updated_stations.0', 'СНП · СНП → ТЭС · Гор.шоссе');
+
+        $station->refresh();
+
+        $this->assertSame('ТЭС', $station->network);
+        $this->assertSame('Гор.шоссе', $station->name);
+        $this->assertSame('sevtech:38b8bdc5-5246-4c13-abce-c47128836221', $station->external_id);
+
+        $this->assertDatabaseHas('reports', [
+            'station_id' => $station->id,
+            'fuel_type' => 'a92',
+            'status' => 'available',
+            'comment' => 'Официальная карта ТЭС · Гор.шоссе',
+        ]);
+    }
+
     public function test_sevtech_rebind_updates_fuel_diff_for_manual_station(): void
     {
         $station = Station::query()->create([
@@ -335,7 +390,7 @@ class SevtechFuelSyncTest extends TestCase
             'statuses' => ['available'],
             'queue_size' => 'unknown',
             'sale_types' => ['qr'],
-            'comment' => 'Импорт SevTech map (fuel.sevtech.org)',
+            'comment' => 'Официальная карта ТЭС · Фиолентовское',
             'is_confirmation' => false,
             'created_at' => now(),
         ]);

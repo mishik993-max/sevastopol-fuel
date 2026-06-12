@@ -1737,6 +1737,12 @@
     color: var(--accent);
 }
 
+.admin-sevtech-profile {
+    margin: 4px 0;
+    font-size: 0.82rem;
+    color: #f59e0b;
+}
+
 .admin-sevtech-fuels {
     margin: 6px 0 0;
     font-size: 0.8rem;
