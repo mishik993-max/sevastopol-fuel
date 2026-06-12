@@ -6,7 +6,7 @@ use App\Models\Station;
 
 class StationMatcher
 {
-    /** @return list<array{station: Station, score: float}> */
+    /** @return list<array{station: Station, score: float, match_type: string}> */
     public function candidates(string $networkHint, string $nameHint, ?string $addressHint = null, int $limit = 5): array
     {
         $networkHint = $this->normalize($networkHint);
@@ -16,23 +16,59 @@ class StationMatcher
             ->filter(fn (Station $station) => $networkHint === '' || $this->networksMatch($station->network, $networkHint));
 
         $needle = $this->normalize(trim($nameHint.' '.($addressHint ?? '')));
+        $addressNeedle = $this->addressNeedle($nameHint, $addressHint);
         $number = $this->extractStationNumber($nameHint.' '.($addressHint ?? ''));
 
         $scored = [];
 
         foreach ($stations as $station) {
-            $score = $this->score($station, $needle, $number, $networkHint);
+            $strictScore = $this->scoreStrict($station, $needle, $number, $networkHint);
 
-            if ($score >= 25) {
-                $scored[] = ['station' => $station, 'score' => $score];
+            if ($strictScore >= 25) {
+                $scored[] = [
+                    'station' => $station,
+                    'score' => $strictScore,
+                    'match_type' => 'number',
+                ];
+
+                continue;
+            }
+
+            $addressScore = $this->scoreByAddress($station, $addressNeedle, $networkHint, $number);
+
+            if ($addressScore >= 25) {
+                $scored[] = [
+                    'station' => $station,
+                    'score' => $addressScore,
+                    'match_type' => 'address',
+                ];
             }
         }
 
         usort($scored, fn (array $a, array $b) => $b['score'] <=> $a['score']);
 
-        return array_slice($scored, 0, $limit);
+        $deduped = [];
+        $seen = [];
+
+        foreach ($scored as $item) {
+            $id = $item['station']->id;
+
+            if (isset($seen[$id])) {
+                continue;
+            }
+
+            $seen[$id] = true;
+            $deduped[] = $item;
+
+            if (count($deduped) >= $limit) {
+                break;
+            }
+        }
+
+        return $deduped;
     }
 
+    /** @return array{station: Station, score: float, match_type: string}|null */
     public function bestMatch(string $networkHint, string $nameHint, ?string $addressHint = null): ?array
     {
         $candidates = $this->candidates($networkHint, $nameHint, $addressHint, 1);
@@ -42,11 +78,12 @@ class StationMatcher
         }
 
         $best = $candidates[0];
+        $minScore = $best['match_type'] === 'address' ? 55 : 45;
 
-        return $best['score'] >= 45 ? $best : null;
+        return $best['score'] >= $minScore ? $best : null;
     }
 
-    private function score(Station $station, string $needle, ?string $number, string $networkHint): float
+    private function scoreStrict(Station $station, string $needle, ?string $number, string $networkHint): float
     {
         $haystack = $this->normalize($station->name.' '.$station->address);
         $score = 0.0;
@@ -81,6 +118,111 @@ class StationMatcher
         }
 
         return min(100.0, round($score, 1));
+    }
+
+    private function scoreByAddress(Station $station, string $addressNeedle, string $networkHint, ?string $number): float
+    {
+        if ($addressNeedle === '' || mb_strlen($addressNeedle) < 4) {
+            return 0;
+        }
+
+        $stationAddress = $this->normalize($station->address);
+        $haystack = $this->normalize($station->name.' '.$station->address);
+
+        if ($stationAddress === '') {
+            return 0;
+        }
+
+        $hintHouse = $this->extractHouseNumber($addressNeedle);
+        $stationHouse = $this->extractHouseNumber($stationAddress);
+
+        if ($hintHouse !== null && $stationHouse !== null && ! $this->houseNumbersMatch($hintHouse, $stationHouse)) {
+            return 0;
+        }
+
+        $score = 0.0;
+
+        if ($networkHint !== '' && $this->networksMatch($station->network, $networkHint)) {
+            $score += 15;
+        }
+
+        similar_text($stationAddress, $addressNeedle, $percent);
+        $score += min(45.0, $percent * 0.55);
+
+        if ($hintHouse !== null && $stationHouse !== null) {
+            $score += 28;
+        }
+
+        foreach ($this->addressTokens($addressNeedle) as $token) {
+            if (str_contains($haystack, $token)) {
+                $score += 6;
+            }
+        }
+
+        if ($number !== null) {
+            $stationNumber = $this->extractStationNumberFromStation($station);
+
+            if ($stationNumber === $number) {
+                $score += 15;
+            }
+        }
+
+        return min(85.0, round($score, 1));
+    }
+
+    private function addressNeedle(string $nameHint, ?string $addressHint): string
+    {
+        $address = trim((string) $addressHint);
+
+        if ($address === '') {
+            $address = preg_replace('/^(?:азс|а\.?з\.?с\.?)\s*№?\s*\d+\s*/ui', '', $nameHint) ?? $nameHint;
+        }
+
+        return $this->normalize($address);
+    }
+
+    private function extractHouseNumber(string $text): ?string
+    {
+        if (! preg_match_all('/(\d+)\s*([а-яa-z])?/ui', $text, $matches, PREG_SET_ORDER)) {
+            return null;
+        }
+
+        $last = end($matches);
+        $digits = $last[1];
+        $letter = isset($last[2]) && $last[2] !== '' ? mb_strtolower($last[2]) : '';
+
+        return $digits.$letter;
+    }
+
+    private function houseNumbersMatch(string $left, string $right): bool
+    {
+        return $this->normalizeHouseNumber($left) === $this->normalizeHouseNumber($right);
+    }
+
+    private function normalizeHouseNumber(string $value): string
+    {
+        if (preg_match('/^(\d+)\s*([а-яa-z])?/ui', $value, $matches)) {
+            $letter = isset($matches[2]) ? mb_strtolower($matches[2]) : '';
+
+            return $matches[1].$letter;
+        }
+
+        return mb_strtolower($value);
+    }
+
+    /** @return list<string> */
+    private function addressTokens(string $text): array
+    {
+        $stopWords = [
+            'улица', 'ул', 'проспект', 'пр', 'просп', 'переулок', 'пер',
+            'шоссе', 'ш', 'бульвар', 'бул', 'район', 'поселок', 'пос',
+            'село', 'город', 'севастополь', 'россия',
+        ];
+
+        return array_values(array_filter(
+            $this->tokens($text),
+            fn (string $token) => mb_strlen($token) >= 4 && ! in_array($token, $stopWords, true),
+        ));
     }
 
     private function networksMatch(string $left, string $right): bool

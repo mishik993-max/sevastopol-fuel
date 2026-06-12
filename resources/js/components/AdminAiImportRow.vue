@@ -86,6 +86,7 @@ function fuelStatusClass(status) {
                         :class="confidenceClass(candidate.score)"
                     >
                         {{ candidate.score }}%
+                        <template v-if="candidate.match_type === 'address'"> · адрес</template>
                     </span>
                     <span v-else-if="!isMatched" class="admin-ai-badge admin-ai-badge--warn">
                         Не сопоставлено
@@ -120,7 +121,7 @@ function fuelStatusClass(status) {
                         :key="item.station_id"
                         :value="item.station_id"
                     >
-                        {{ item.label }} · {{ item.score }}%
+                        {{ item.label }} · {{ item.score }}%<template v-if="item.match_type === 'address'"> (адрес)</template>
                     </option>
                 </select>
             </label>
@@ -139,7 +140,7 @@ function fuelStatusClass(status) {
         </div>
 
         <div v-else class="admin-ai-card-empty">
-            Совпадений в базе не найдено — выберите АЗС вручную после добавления в каталог.
+            В базе нет АЗС с таким номером или адресом. Добавьте заправку в каталог или дождитесь обновления данных.
         </div>
 
         <button

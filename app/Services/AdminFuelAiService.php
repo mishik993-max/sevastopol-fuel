@@ -197,7 +197,15 @@ class AdminFuelAiService
                     : null,
                 'station_address' => $match['station']->address ?? null,
                 'confidence' => $match['score'] ?? null,
-                'candidates' => array_map(fn (array $candidate) => $this->formatCandidate($candidate['station'], $candidate['score']), $candidates),
+                'match_type' => $match['match_type'] ?? null,
+                'candidates' => array_map(
+                    fn (array $candidate) => $this->formatCandidate(
+                        $candidate['station'],
+                        $candidate['score'],
+                        $candidate['match_type'],
+                    ),
+                    $candidates,
+                ),
             ];
 
             if ($match !== null) {
@@ -321,14 +329,15 @@ PROMPT;
         return $result;
     }
 
-    /** @return array{station_id: int, label: string, address: string, score: float, map_url: string} */
-    private function formatCandidate(Station $station, float $score): array
+    /** @return array{station_id: int, label: string, address: string, score: float, map_url: string, match_type: string} */
+    private function formatCandidate(Station $station, float $score, string $matchType = 'number'): array
     {
         return [
             'station_id' => $station->id,
             'label' => "{$station->network} · {$station->name}",
             'address' => $station->address,
             'score' => $score,
+            'match_type' => $matchType,
             'map_url' => $this->stationMapUrl($station->id),
         ];
     }
@@ -417,8 +426,13 @@ PROMPT;
                 : null,
             'station_address' => $match['station']->address ?? null,
             'confidence' => $match['score'] ?? null,
+            'match_type' => $match['match_type'] ?? null,
             'candidates' => array_map(
-                fn (array $candidate) => $this->formatCandidate($candidate['station'], $candidate['score']),
+                fn (array $candidate) => $this->formatCandidate(
+                    $candidate['station'],
+                    $candidate['score'],
+                    $candidate['match_type'],
+                ),
                 $candidates,
             ),
             'queued_at' => $item->updated_at?->toIso8601String(),

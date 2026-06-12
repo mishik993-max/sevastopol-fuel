@@ -179,5 +179,60 @@ class AdminAiChatTest extends TestCase
 
         $this->assertNotNull($match);
         $this->assertSame($station61->id, $match['station']->id);
+        $this->assertSame('number', $match['match_type']);
+    }
+
+    public function test_station_matcher_falls_back_to_address_when_number_missing_in_database(): void
+    {
+        $byAddress = Station::query()->create([
+            'name' => 'АТАН Камышовое',
+            'network' => 'Атан',
+            'address' => 'Камышовое шоссе 12б',
+            'latitude' => 44.61,
+            'longitude' => 33.51,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        Station::query()->create([
+            'name' => 'АТАН Россия №82',
+            'network' => 'Атан',
+            'address' => 'Камышовое шоссе 7в',
+            'latitude' => 44.611,
+            'longitude' => 33.511,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        $match = app(StationMatcher::class)->bestMatch(
+            'Атан',
+            'АЗС 66 Камышовое шоссе 12б',
+            'Камышовое шоссе 12б',
+        );
+
+        $this->assertNotNull($match);
+        $this->assertSame($byAddress->id, $match['station']->id);
+        $this->assertSame('address', $match['match_type']);
+    }
+
+    public function test_station_matcher_does_not_match_different_house_number_by_address(): void
+    {
+        Station::query()->create([
+            'name' => 'АТАН Россия №82',
+            'network' => 'Атан',
+            'address' => 'Камышовое шоссе 7в',
+            'latitude' => 44.61,
+            'longitude' => 33.51,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        $match = app(StationMatcher::class)->bestMatch(
+            'Атан',
+            'АЗС 66 Камышовое шоссе 12б',
+            'Камышовое шоссе 12б',
+        );
+
+        $this->assertNull($match);
     }
 }
