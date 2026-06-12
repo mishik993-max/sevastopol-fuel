@@ -15,6 +15,7 @@ import OnboardingTour from './components/OnboardingTour.vue';
 import HelpGuide from './components/HelpGuide.vue';
 import StatsPanel from './components/StatsPanel.vue';
 import FeedbackForm from './components/FeedbackForm.vue';
+import FuelAssistantChat from './components/FuelAssistantChat.vue';
 import LegalDocs from './components/LegalDocs.vue';
 import LegalLinks from './components/LegalLinks.vue';
 import AdminPanel from './components/AdminPanel.vue';
@@ -51,6 +52,7 @@ const showOnboarding = ref(false);
 const showHelp = ref(false);
 const showStats = ref(false);
 const showFeedback = ref(false);
+const showFuelAssistant = ref(false);
 const showLegal = ref(false);
 const legalDocId = ref('privacy');
 const settingsReady = ref(false);
@@ -547,6 +549,31 @@ function onMapPick(coords) {
     pickCoords.value = { lat: coords.lat, lng: coords.lng };
 }
 
+async function onAssistantPublished(data) {
+    await refreshList();
+
+    if (data?.station) {
+        selectedStation.value = data.station;
+        viewMode.value = 'map';
+    } else if (data?.station_id) {
+        const station = await fetchStation(data.station_id, primaryFuel.value);
+
+        if (station) {
+            selectedStation.value = station;
+            viewMode.value = 'map';
+        }
+    }
+}
+
+function openFuelAssistant() {
+    showFuelAssistant.value = true;
+    showReport.value = false;
+}
+
+function closeFuelAssistant() {
+    showFuelAssistant.value = false;
+}
+
 async function onStationAdded(station) {
     closeAddStation();
     await refreshList();
@@ -684,6 +711,9 @@ async function onStationClosed() {
                     </button>
                     <button type="button" class="topbar-icon-btn" title="Статистика" @click="showStats = true">
                         <UiIcon name="gauge" :size="16" color="currentColor" />
+                    </button>
+                    <button type="button" class="topbar-icon-btn topbar-icon-btn--assistant" title="Помощник по топливу" @click="openFuelAssistant">
+                        <UiIcon name="activity" :size="16" color="currentColor" />
                     </button>
                     <button type="button" class="topbar-icon-btn" title="Написать нам" @click="showFeedback = true">
                         <UiIcon name="message-square" :size="16" color="currentColor" />
@@ -1025,6 +1055,17 @@ async function onStationClosed() {
             v-if="showFeedback"
             @close="showFeedback = false"
         />
+
+        <div v-if="showFuelAssistant" class="modal-overlay fuel-assistant-overlay" @click.self="closeFuelAssistant">
+            <div class="fuel-assistant-sheet">
+                <FuelAssistantChat
+                    :context-station="selectedStation"
+                    :user-position="position"
+                    @close="closeFuelAssistant"
+                    @published="onAssistantPublished"
+                />
+            </div>
+        </div>
 
         <CookieBanner
             v-if="!cookieConsentGranted"

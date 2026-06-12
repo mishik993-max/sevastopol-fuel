@@ -33,5 +33,17 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('reports-confirm', function (Request $request) {
             return Limit::perMinute(15)->by($request->ip());
         });
+
+        RateLimiter::for('fuel-assistant', function (Request $request) {
+            $key = $request->input('client_id') ?: $request->ip();
+
+            return Limit::perHour(40)->by($key);
+        });
+
+        RateLimiter::for('fuel-assistant-confirm', function (Request $request) {
+            $key = $request->input('client_id') ?: $request->ip();
+
+            return Limit::perHour(10)->by($key);
+        });
     }
 }

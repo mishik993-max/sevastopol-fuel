@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\FuelAssistantController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\FaqController;
 use App\Http\Controllers\Api\FeedbackController;
@@ -38,6 +39,12 @@ Route::middleware('throttle:60,1')->group(function () {
     Route::delete('/push/unsubscribe', [PushController::class, 'unsubscribe']);
     Route::put('/push/watches', [PushWatchController::class, 'sync'])->middleware('throttle:30,1');
     Route::delete('/push/watches', [PushWatchController::class, 'destroy'])->middleware('throttle:30,1');
+
+    Route::get('/fuel-assistant/session', [FuelAssistantController::class, 'session'])->middleware('throttle:fuel-assistant');
+    Route::post('/fuel-assistant/message', [FuelAssistantController::class, 'message'])->middleware('throttle:fuel-assistant');
+    Route::post('/fuel-assistant/confirm', [FuelAssistantController::class, 'confirm'])->middleware('throttle:fuel-assistant-confirm');
+    Route::post('/fuel-assistant/reject', [FuelAssistantController::class, 'reject'])->middleware('throttle:fuel-assistant');
+    Route::post('/fuel-assistant/close', [FuelAssistantController::class, 'close'])->middleware('throttle:fuel-assistant');
 });
 
 Route::post('/admin/login', [AdminController::class, 'login']);

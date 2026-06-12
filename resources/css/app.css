@@ -3638,3 +3638,177 @@ body {
 .stats-modal.modal--sheet {
     max-height: 92vh;
 }
+
+/* Fuel assistant (private AI dialog) */
+
+.topbar-icon-btn--assistant {
+    color: var(--accent);
+}
+
+.fuel-assistant-overlay {
+    align-items: flex-end;
+    background: var(--overlay-strong);
+    z-index: 1200;
+}
+
+.fuel-assistant-sheet {
+    width: 100%;
+    max-width: 480px;
+    max-height: 92vh;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 22px 22px 0 0;
+    box-shadow: var(--panel-shadow);
+    overflow: hidden;
+}
+
+.fuel-assistant {
+    display: flex;
+    flex-direction: column;
+    max-height: 92vh;
+    min-height: 420px;
+}
+
+.fuel-assistant-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.fuel-assistant-title {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.fuel-assistant-sub {
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+.fuel-assistant-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 10px;
+    background: var(--chip-bg);
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.fuel-assistant-messages {
+    flex: 1;
+    min-height: 180px;
+    max-height: 42vh;
+    overflow-y: auto;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fuel-assistant-msg {
+    max-width: 92%;
+    padding: 10px 12px;
+    border-radius: 14px;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+}
+
+.fuel-assistant-msg--user {
+    align-self: flex-end;
+    background: rgba(229, 62, 62, 0.15);
+    border: 1px solid rgba(229, 62, 62, 0.25);
+}
+
+.fuel-assistant-msg--assistant {
+    align-self: flex-start;
+    background: var(--surface2);
+    border: 1px solid var(--border-subtle);
+}
+
+.fuel-assistant-msg--typing {
+    color: var(--muted);
+    font-style: italic;
+}
+
+.fuel-assistant-preview {
+    margin: 0 16px 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--accent-border);
+    background: var(--accent-dim);
+}
+
+.fuel-assistant-preview-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    margin-bottom: 6px;
+}
+
+.fuel-assistant-preview-station {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.fuel-assistant-preview-address,
+.fuel-assistant-preview-fuels {
+    margin-top: 4px;
+    font-size: 0.82rem;
+    color: var(--muted-light);
+}
+
+.fuel-assistant-select-label {
+    display: block;
+    margin-top: 10px;
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+
+.fuel-assistant-select {
+    width: 100%;
+    margin-top: 4px;
+}
+
+.fuel-assistant-preview-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.fuel-assistant-error {
+    margin: 0 16px 8px;
+    font-size: 0.82rem;
+    color: #ef4444;
+}
+
+.fuel-assistant-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    padding: 12px 16px calc(14px + var(--safe-bottom));
+    border-top: 1px solid var(--border-subtle);
+    background: var(--sheet-footer-bg);
+}
+
+.fuel-assistant-input {
+    flex: 1;
+    min-height: 44px;
+    resize: none;
+}
+
+.fuel-assistant-send {
+    flex-shrink: 0;
+    min-height: 44px;
+}
