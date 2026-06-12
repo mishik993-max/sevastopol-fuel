@@ -278,15 +278,17 @@ class SevtechFuelSyncService
             $item['address'] ?? null,
             isset($item['latitude']) ? (float) $item['latitude'] : null,
             isset($item['longitude']) ? (float) $item['longitude'] : null,
+            restrictNetwork: false,
         );
 
         $candidates = $this->matcher->candidates(
             (string) ($item['network'] ?? config('sevtech.network_hint')),
             (string) $item['name'],
             $item['address'] ?? null,
-            8,
+            12,
             isset($item['latitude']) ? (float) $item['latitude'] : null,
             isset($item['longitude']) ? (float) $item['longitude'] : null,
+            restrictNetwork: false,
         );
 
         $stationId = $match['station']->id ?? null;

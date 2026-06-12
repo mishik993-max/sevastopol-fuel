@@ -14,12 +14,15 @@ class StationMatcher
         int $limit = 5,
         ?float $latitude = null,
         ?float $longitude = null,
+        bool $restrictNetwork = true,
     ): array {
         $networkHint = $this->normalize($networkHint);
         $stations = Station::query()
             ->where('is_active', true)
             ->get()
-            ->filter(fn (Station $station) => $networkHint === '' || $this->networksMatch($station->network, $networkHint));
+            ->filter(fn (Station $station) => ! $restrictNetwork
+                || $networkHint === ''
+                || $this->networksMatch($station->network, $networkHint));
 
         $needle = $this->normalize(trim($nameHint.' '.($addressHint ?? '')));
         $addressNeedle = $this->addressNeedle($nameHint, $addressHint);
@@ -28,40 +31,45 @@ class StationMatcher
         $scored = [];
 
         foreach ($stations as $station) {
+            $distanceM = $this->stationDistanceM($station, $latitude, $longitude);
+            $best = null;
+
             $strictScore = $this->scoreStrict($station, $needle, $number, $networkHint);
 
             if ($strictScore >= 25) {
-                $scored[] = [
+                $best = [
                     'station' => $station,
                     'score' => $strictScore,
                     'match_type' => 'number',
+                    'distance_m' => $distanceM,
                 ];
-
-                continue;
             }
 
             $addressScore = $this->scoreByAddress($station, $addressNeedle, $networkHint, $number);
 
-            if ($addressScore >= 25) {
-                $scored[] = [
+            if ($addressScore >= 25 && ($best === null || $addressScore > $best['score'])) {
+                $best = [
                     'station' => $station,
                     'score' => $addressScore,
                     'match_type' => 'address',
+                    'distance_m' => $distanceM,
                 ];
-
-                continue;
             }
 
             if ($latitude !== null && $longitude !== null) {
                 $coordinateMatch = $this->scoreByCoordinates($station, $latitude, $longitude, $networkHint);
 
-                if ($coordinateMatch !== null) {
-                    $scored[] = $coordinateMatch;
+                if ($coordinateMatch !== null && ($best === null || $coordinateMatch['score'] > $best['score'])) {
+                    $best = $coordinateMatch;
                 }
+            }
+
+            if ($best !== null) {
+                $scored[] = $best;
             }
         }
 
-        usort($scored, fn (array $a, array $b) => $b['score'] <=> $a['score']);
+        usort($scored, fn (array $a, array $b) => $this->compareCandidates($a, $b, $latitude !== null && $longitude !== null));
 
         $deduped = [];
         $seen = [];
@@ -91,17 +99,72 @@ class StationMatcher
         ?string $addressHint = null,
         ?float $latitude = null,
         ?float $longitude = null,
+        bool $restrictNetwork = true,
     ): ?array {
-        $candidates = $this->candidates($networkHint, $nameHint, $addressHint, 1, $latitude, $longitude);
+        $hasCoords = $latitude !== null && $longitude !== null;
+        $limit = $hasCoords && ! $restrictNetwork ? 15 : 5;
+        $candidates = $this->candidates(
+            $networkHint,
+            $nameHint,
+            $addressHint,
+            $limit,
+            $latitude,
+            $longitude,
+            $restrictNetwork,
+        );
 
         if ($candidates === []) {
             return null;
         }
 
         $best = $candidates[0];
+
+        if ($hasCoords && ($best['distance_m'] ?? null) !== null && $best['distance_m'] <= 100) {
+            return $best['score'] >= 55 ? $best : null;
+        }
+
         $minScore = in_array($best['match_type'], ['address', 'coordinates'], true) ? 55 : 45;
 
         return $best['score'] >= $minScore ? $best : null;
+    }
+
+    /** @param  array{score: float, match_type: string, distance_m?: int|null}  $a
+     * @param  array{score: float, match_type: string, distance_m?: int|null}  $b
+     */
+    private function compareCandidates(array $a, array $b, bool $preferDistance): int
+    {
+        if ($preferDistance) {
+            $distanceA = $a['distance_m'] ?? null;
+            $distanceB = $b['distance_m'] ?? null;
+
+            if ($distanceA !== null && $distanceB !== null && $distanceA !== $distanceB) {
+                return $distanceA <=> $distanceB;
+            }
+
+            if ($distanceA !== null && $distanceB === null) {
+                return -1;
+            }
+
+            if ($distanceA === null && $distanceB !== null) {
+                return 1;
+            }
+        }
+
+        return $b['score'] <=> $a['score'];
+    }
+
+    private function stationDistanceM(Station $station, ?float $latitude, ?float $longitude): ?int
+    {
+        if ($latitude === null || $longitude === null || $station->latitude === null || $station->longitude === null) {
+            return null;
+        }
+
+        return (int) round($this->distanceM(
+            $latitude,
+            $longitude,
+            (float) $station->latitude,
+            (float) $station->longitude,
+        ));
     }
 
     private function scoreStrict(Station $station, string $needle, ?string $number, string $networkHint): float
@@ -211,15 +274,21 @@ class StationMatcher
             return null;
         }
 
-        $score = 92 - ($distanceM / max($maxDistanceM, 1)) * 37;
+        if ($distanceM <= 30) {
+            $score = 98 - ($distanceM / 30) * 3;
+        } elseif ($distanceM <= 100) {
+            $score = 95 - (($distanceM - 30) / 70) * 8;
+        } else {
+            $score = 92 - ($distanceM / max($maxDistanceM, 1)) * 37;
+        }
 
         if ($networkHint !== '' && $this->networksMatch($station->network, $networkHint)) {
-            $score += 3;
+            $score += 2;
         }
 
         return [
             'station' => $station,
-            'score' => round(min(95.0, max(55.0, $score)), 1),
+            'score' => round(min(98.0, max(55.0, $score)), 1),
             'match_type' => 'coordinates',
             'distance_m' => $distanceM,
         ];

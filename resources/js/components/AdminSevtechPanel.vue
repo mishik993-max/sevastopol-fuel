@@ -47,13 +47,23 @@ function catalogDistance(row, stationId) {
     return Math.round(distanceM(row.latitude, row.longitude, entry.latitude, entry.longitude));
 }
 
+function shortAddress(address) {
+    if (!address) return '';
+
+    const text = address.replace(/\s*,\s*Россия\s*$/i, '').trim();
+
+    return text.length > 48 ? `${text.slice(0, 45)}…` : text;
+}
+
 function stationOptions(row) {
+    const maxDistanceM = 2000;
+    const maxOptions = 20;
     const seen = new Set();
     const options = [];
 
-    for (const item of row.candidates ?? []) {
+    const pushOption = (item) => {
         if (seen.has(item.station_id)) {
-            continue;
+            return;
         }
 
         seen.add(item.station_id);
@@ -61,6 +71,10 @@ function stationOptions(row) {
             ...item,
             distance_m: item.distance_m ?? catalogDistance(row, item.station_id),
         });
+    };
+
+    for (const item of row.candidates ?? []) {
+        pushOption(item);
     }
 
     const catalog = [...(stationCatalog.value || [])]
@@ -70,18 +84,16 @@ function stationOptions(row) {
             match_type: 'manual',
             distance_m: catalogDistance(row, item.station_id),
         }))
+        .filter((item) => item.distance_m == null || item.distance_m <= maxDistanceM)
         .sort((left, right) => (left.distance_m ?? 999999) - (right.distance_m ?? 999999));
 
     for (const item of catalog) {
-        if (seen.has(item.station_id)) {
-            continue;
-        }
-
-        seen.add(item.station_id);
-        options.push(item);
+        pushOption(item);
     }
 
-    return options;
+    return options
+        .sort((left, right) => (left.distance_m ?? 999999) - (right.distance_m ?? 999999))
+        .slice(0, maxOptions);
 }
 
 function selectedStation(row) {
@@ -237,23 +249,27 @@ function fuelsSummary(fuels) {
 }
 
 function optionLabel(item) {
-    let text = item.label;
+    const parts = [];
 
-    if (item.score != null) {
-        text += ` · ${item.score}%`;
+    if (item.distance_m != null) {
+        parts.push(`${item.distance_m} м`);
+    }
+
+    parts.push(item.label);
+
+    const address = shortAddress(item.address);
+
+    if (address) {
+        parts.push(address);
     }
 
     if (item.match_type === 'coordinates') {
-        text += ' (GPS)';
+        parts.push('GPS');
     } else if (item.match_type === 'address') {
-        text += ' (адрес)';
+        parts.push('адрес');
     }
 
-    if (item.distance_m != null) {
-        text += ` · ${item.distance_m} м`;
-    }
-
-    return text;
+    return parts.join(' · ');
 }
 </script>
 
