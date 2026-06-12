@@ -356,6 +356,16 @@ class FuelAssistantService
         $networkHint = (string) ($draft['network'] ?? '');
         $nameHint = (string) ($draft['name_hint'] ?? '');
         $addressHint = isset($draft['address_hint']) ? (string) $draft['address_hint'] : null;
+        $addressHint = trim((string) $addressHint) !== '' ? trim((string) $addressHint) : null;
+
+        if ($addressHint === null && preg_match('/(?:ул\.?|улица|пр\.?|просп|шоссе)/ui', $nameHint)) {
+            $addressHint = trim((string) (preg_replace(
+                '/^(?:азс|а\.?з\.?с\.?)\s*[-–№]?\s*\d+\s*,?\s*/ui',
+                '',
+                $nameHint,
+            ) ?? $nameHint));
+            $addressHint = $addressHint !== '' ? $addressHint : null;
+        }
         $saleTypes = $this->normalizeSaleTypes($draft['sale_types'] ?? ['regular']);
         $stationQueue = $this->normalizeQueueSize($draft['queue_size'] ?? null);
         $note = isset($draft['note']) ? (string) $draft['note'] : null;

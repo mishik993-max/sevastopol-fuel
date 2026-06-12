@@ -342,6 +342,60 @@ class AdminAiChatTest extends TestCase
         $this->assertContains($match['match_type'], ['number', 'address']);
     }
 
+    public function test_station_matcher_matches_generic_atan_name_by_khrustaleva_address(): void
+    {
+        $station = Station::query()->create([
+            'name' => 'Атан',
+            'network' => 'Атан',
+            'address' => 'улица Хрусталева 62, Севастополь, Россия',
+            'latitude' => 44.56267,
+            'longitude' => 33.5197,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        $matcher = app(StationMatcher::class);
+
+        $match = $matcher->bestMatch(
+            'Атан',
+            'АЗС-81',
+            'ул. Хрусталеva, 62',
+            restrictNetwork: true,
+        );
+
+        $this->assertNotNull($match);
+        $this->assertSame($station->id, $match['station']->id);
+        $this->assertSame('address', $match['match_type']);
+    }
+
+    public function test_station_matcher_does_not_treat_azs_number_as_house_number(): void
+    {
+        Station::query()->create([
+            'name' => 'Атан',
+            'network' => 'Атан',
+            'address' => 'улица Хрусталева 62, Севастополь, Россия',
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        Station::query()->create([
+            'name' => 'Атан',
+            'network' => 'Атан',
+            'address' => 'улица Хрусталеva 81, Севастополь, Россия',
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        $match = app(StationMatcher::class)->bestMatch(
+            'Атан',
+            'АЗС-81',
+            null,
+            restrictNetwork: true,
+        );
+
+        $this->assertNull($match);
+    }
+
     public function test_station_matcher_refine_for_picker_filters_generic_network_only_matches(): void
     {
         Station::query()->create([

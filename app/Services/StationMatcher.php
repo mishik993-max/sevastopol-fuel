@@ -117,20 +117,33 @@ class StationMatcher
         }
 
         if ($addressTokens !== []) {
-            $byAddress = array_values(array_filter($candidates, function (array $candidate) use ($addressTokens) {
-                if ($candidate['score'] < 40) {
-                    return false;
-                }
+            $hintHouse = $this->extractHintHouseNumber($nameHint, $addressHint);
 
-                $haystack = $this->normalize($candidate['station']->address.' '.$candidate['station']->name);
+            $byAddress = array_values(array_filter($candidates, function (array $candidate) use ($addressTokens, $hintHouse) {
+                $haystack = $this->normalizeAddress($candidate['station']->address.' '.$candidate['station']->name);
+
+                $tokenMatch = false;
 
                 foreach ($addressTokens as $token) {
                     if (str_contains($haystack, $token)) {
-                        return true;
+                        $tokenMatch = true;
+                        break;
                     }
                 }
 
-                return false;
+                if (! $tokenMatch) {
+                    return false;
+                }
+
+                if ($hintHouse !== null) {
+                    $stationHouse = $this->extractHouseNumber($this->normalizeAddress((string) $candidate['station']->address));
+
+                    if ($stationHouse !== null && ! $this->houseNumbersMatch($hintHouse, $stationHouse)) {
+                        return false;
+                    }
+                }
+
+                return $candidate['score'] >= 35;
             }));
 
             if ($byAddress !== []) {
@@ -266,9 +279,7 @@ class StationMatcher
                 }
 
                 $score += 55;
-            } elseif (! preg_match('/\b'.preg_quote($number, '/').'\b/u', $haystack)) {
-                return 0;
-            } else {
+            } elseif (preg_match('/\b'.preg_quote($number, '/').'\b/u', $haystack)) {
                 $score += 45;
             }
         }
@@ -291,14 +302,14 @@ class StationMatcher
             return 0;
         }
 
-        $stationAddress = $this->normalize($station->address);
-        $haystack = $this->normalize($station->name.' '.$station->address);
+        $stationAddress = $this->normalizeAddress($station->address);
+        $haystack = $this->normalizeAddress($station->name.' '.$station->address);
 
         if ($stationAddress === '') {
             return 0;
         }
 
-        $hintHouse = $this->extractHouseNumber($addressNeedle);
+        $hintHouse = $this->extractHintHouseNumber($nameHint, $addressHint);
         $stationHouse = $this->extractHouseNumber($stationAddress);
 
         if ($hintHouse !== null && $stationHouse !== null && ! $this->houseNumbersMatch($hintHouse, $stationHouse)) {
@@ -391,14 +402,29 @@ class StationMatcher
         $address = trim((string) $addressHint);
 
         if ($address === '') {
-            $address = preg_replace('/^(?:азс|а\.?з\.?с\.?)\s*№?\s*\d+\s*/ui', '', $nameHint) ?? $nameHint;
+            $address = preg_replace('/^(?:азс|а\.?з\.?с\.?)\s*[-–№]?\s*\d+\s*/ui', '', $nameHint) ?? $nameHint;
+            $address = preg_replace('/(?:азс|а\.?з\.?с\.?)\s*[-–№]?\s*\d+/ui', ' ', $address) ?? $address;
         }
 
-        return $this->normalize($address);
+        return $this->normalizeAddress($address);
+    }
+
+    private function extractHintHouseNumber(string $nameHint, ?string $addressHint): ?string
+    {
+        if ($addressHint !== null && trim($addressHint) !== '') {
+            return $this->extractHouseNumber($this->normalizeAddress($addressHint));
+        }
+
+        $addressPart = preg_replace('/(?:азс|а\.?з\.?с\.?)\s*[-–№]?\s*\d+/ui', ' ', $nameHint) ?? $nameHint;
+
+        return $this->extractHouseNumber($this->normalizeAddress($addressPart));
     }
 
     private function extractHouseNumber(string $text): ?string
     {
+        $text = preg_replace('/(?:азс|а\.?з\.?с\.?)\s*[-–№]?\s*\d+/ui', ' ', $text) ?? $text;
+        $text = preg_replace('/(?:№|no|number)\s*\d+/ui', ' ', $text) ?? $text;
+
         if (! preg_match_all('/(\d+)\s*([а-яa-z])?/ui', $text, $matches, PREG_SET_ORDER)) {
             return null;
         }
@@ -529,5 +555,20 @@ class StationMatcher
         $text = preg_replace('/[^\p{L}\d\s]/u', ' ', $text) ?? $text;
 
         return trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
+    }
+
+    private function normalizeAddress(string $text): string
+    {
+        $text = $this->normalize($text);
+
+        return strtr($text, [
+            'a' => 'а',
+            'c' => 'с',
+            'e' => 'е',
+            'o' => 'о',
+            'p' => 'р',
+            'x' => 'х',
+            'y' => 'у',
+        ]);
     }
 }
