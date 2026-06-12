@@ -6,9 +6,15 @@ use App\Models\Station;
 
 class StationMatcher
 {
-    /** @return list<array{station: Station, score: float, match_type: string}> */
-    public function candidates(string $networkHint, string $nameHint, ?string $addressHint = null, int $limit = 5): array
-    {
+    /** @return list<array{station: Station, score: float, match_type: string, distance_m?: int}> */
+    public function candidates(
+        string $networkHint,
+        string $nameHint,
+        ?string $addressHint = null,
+        int $limit = 5,
+        ?float $latitude = null,
+        ?float $longitude = null,
+    ): array {
         $networkHint = $this->normalize($networkHint);
         $stations = Station::query()
             ->where('is_active', true)
@@ -42,6 +48,16 @@ class StationMatcher
                     'score' => $addressScore,
                     'match_type' => 'address',
                 ];
+
+                continue;
+            }
+
+            if ($latitude !== null && $longitude !== null) {
+                $coordinateMatch = $this->scoreByCoordinates($station, $latitude, $longitude, $networkHint);
+
+                if ($coordinateMatch !== null) {
+                    $scored[] = $coordinateMatch;
+                }
             }
         }
 
@@ -68,17 +84,22 @@ class StationMatcher
         return $deduped;
     }
 
-    /** @return array{station: Station, score: float, match_type: string}|null */
-    public function bestMatch(string $networkHint, string $nameHint, ?string $addressHint = null): ?array
-    {
-        $candidates = $this->candidates($networkHint, $nameHint, $addressHint, 1);
+    /** @return array{station: Station, score: float, match_type: string, distance_m?: int}|null */
+    public function bestMatch(
+        string $networkHint,
+        string $nameHint,
+        ?string $addressHint = null,
+        ?float $latitude = null,
+        ?float $longitude = null,
+    ): ?array {
+        $candidates = $this->candidates($networkHint, $nameHint, $addressHint, 1, $latitude, $longitude);
 
         if ($candidates === []) {
             return null;
         }
 
         $best = $candidates[0];
-        $minScore = $best['match_type'] === 'address' ? 55 : 45;
+        $minScore = in_array($best['match_type'], ['address', 'coordinates'], true) ? 55 : 45;
 
         return $best['score'] >= $minScore ? $best : null;
     }
@@ -168,6 +189,51 @@ class StationMatcher
         }
 
         return min(85.0, round($score, 1));
+    }
+
+    /** @return array{station: Station, score: float, match_type: string, distance_m: int}|null */
+    private function scoreByCoordinates(Station $station, float $latitude, float $longitude, string $networkHint): ?array
+    {
+        if ($station->latitude === null || $station->longitude === null) {
+            return null;
+        }
+
+        $distanceM = (int) round($this->distanceM(
+            $latitude,
+            $longitude,
+            (float) $station->latitude,
+            (float) $station->longitude,
+        ));
+
+        $maxDistanceM = (int) config('sevtech.match_max_distance_m', 400);
+
+        if ($distanceM > $maxDistanceM) {
+            return null;
+        }
+
+        $score = 92 - ($distanceM / max($maxDistanceM, 1)) * 37;
+
+        if ($networkHint !== '' && $this->networksMatch($station->network, $networkHint)) {
+            $score += 3;
+        }
+
+        return [
+            'station' => $station,
+            'score' => round(min(95.0, max(55.0, $score)), 1),
+            'match_type' => 'coordinates',
+            'distance_m' => $distanceM,
+        ];
+    }
+
+    private function distanceM(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $earthRadius = 6_371_000;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) ** 2
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+
+        return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 
     private function addressNeedle(string $nameHint, ?string $addressHint): string

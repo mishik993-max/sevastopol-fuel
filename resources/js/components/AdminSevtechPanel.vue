@@ -164,13 +164,18 @@ function fuelsSummary(fuels) {
                             <h3 class="admin-ai-card-title">{{ row.name }}</h3>
                             <span v-if="row.confidence != null" class="admin-ai-badge admin-ai-badge--ok">
                                 {{ row.confidence }}%
+                                <template v-if="row.match_type === 'coordinates'"> · GPS</template>
+                                <template v-else-if="row.match_type === 'address'"> · адрес</template>
                             </span>
                             <span v-else-if="!row.station_id" class="admin-ai-badge admin-ai-badge--warn">
                                 Не сопоставлено
                             </span>
                         </div>
                         <p v-if="row.address" class="admin-ai-card-address">{{ row.address }}</p>
-                        <p v-if="row.station_label" class="admin-sevtech-match">{{ row.station_label }}</p>
+                        <p v-if="row.station_label" class="admin-sevtech-match">
+                            {{ row.station_label }}
+                            <span v-if="row.match_distance_m != null" class="hint">({{ row.match_distance_m }} м)</span>
+                        </p>
                         <p class="admin-sevtech-fuels">{{ fuelsSummary(row.fuels) }}</p>
                     </div>
                 </div>

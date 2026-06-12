@@ -146,6 +146,8 @@ class SevtechFuelSyncService
             (string) ($item['network'] ?? config('sevtech.network_hint')),
             (string) $item['name'],
             $item['address'] ?? null,
+            isset($item['latitude']) ? (float) $item['latitude'] : null,
+            isset($item['longitude']) ? (float) $item['longitude'] : null,
         );
 
         $candidates = $this->matcher->candidates(
@@ -153,6 +155,8 @@ class SevtechFuelSyncService
             (string) $item['name'],
             $item['address'] ?? null,
             5,
+            isset($item['latitude']) ? (float) $item['latitude'] : null,
+            isset($item['longitude']) ? (float) $item['longitude'] : null,
         );
 
         $stationId = $match['station']->id ?? null;
@@ -210,12 +214,14 @@ class SevtechFuelSyncService
             'station_address' => $match ? $match['station']->address : null,
             'confidence' => $match['score'] ?? null,
             'match_type' => $match['match_type'] ?? null,
+            'match_distance_m' => $match['distance_m'] ?? null,
             'candidates' => array_map(fn (array $candidate) => [
                 'station_id' => $candidate['station']->id,
                 'label' => "{$candidate['station']->network} · {$candidate['station']->name}",
                 'address' => $candidate['station']->address,
                 'score' => $candidate['score'],
                 'match_type' => $candidate['match_type'],
+                'distance_m' => $candidate['distance_m'] ?? null,
             ], $candidates),
             'fuels' => $fuelRows,
             'will_create' => $willCreate,
