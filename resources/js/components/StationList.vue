@@ -1,13 +1,14 @@
 <script setup>
 import { computed } from 'vue';
 import { distanceM, FUEL_TYPES } from '../constants';
+import { pickDisplayFuel } from '../utils/fuelSelection';
 import { useFavoriteStations } from '../composables/useFavoriteStations';
 import UiIcon from './UiIcon.vue';
 
 const props = defineProps({
     stations: { type: Array, default: () => [] },
     selectedId: { type: Number, default: null },
-    selectedFuel: { type: String, default: 'a95' },
+    selectedFuels: { type: Array, default: () => ['a95'] },
     userPosition: { type: Object, default: null },
     sortByDistance: { type: Boolean, default: false },
     favoritesOnly: { type: Boolean, default: false },
@@ -97,7 +98,7 @@ function fuelBadgeStyle(status) {
 }
 
 function freshnessShort(station) {
-    const fuel = station.fuels?.find((f) => f.fuel_type === props.selectedFuel) ?? station.fuels?.[0];
+    const fuel = pickDisplayFuel(station, props.selectedFuels);
     const label = fuel?.freshness_label ?? '';
 
     if (!label || label === 'Нет данных') {
@@ -105,6 +106,10 @@ function freshnessShort(station) {
     }
 
     return label.replace('Подтверждено ', '').replace('Вероятно актуально, ', '');
+}
+
+function isFuelHighlighted(fuelType) {
+    return props.selectedFuels.includes(fuelType);
 }
 </script>
 
@@ -151,6 +156,7 @@ function freshnessShort(station) {
                         v-for="fuel in station.fuels"
                         :key="fuel.fuel_type"
                         class="station-list-fuel-badge"
+                        :class="{ 'station-list-fuel-badge--dim': !isFuelHighlighted(fuel.fuel_type) }"
                         :style="fuelBadgeStyle(fuel.status)"
                     >
                         <i class="station-list-fuel-dot" :style="{ backgroundColor: STATUS_COLORS[fuel.status] ?? STATUS_COLORS.unknown }" />

@@ -3242,6 +3242,10 @@ body {
     letter-spacing: 0.03em;
 }
 
+.station-list-fuel-badge--dim {
+    opacity: 0.38;
+}
+
 .station-list-fuel-dot {
     width: 5px;
     height: 5px;

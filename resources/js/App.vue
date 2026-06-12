@@ -21,6 +21,14 @@ import AdminPanel from './components/AdminPanel.vue';
 import CookieBanner from './components/CookieBanner.vue';
 import UiIcon from './components/UiIcon.vue';
 import { FUEL_TYPES } from './constants';
+import {
+    loadSelectedFuels,
+    mergeMarkerColor,
+    parseFuelQueryParam,
+    pickDisplayFuel,
+    saveSelectedFuels,
+    normalizeFuelSelection,
+} from './utils/fuelSelection';
 import { apiUrl } from './api';
 import { useStations } from './composables/useStations';
 import { useGeolocation } from './composables/useGeolocation';
@@ -54,7 +62,8 @@ const { isDark, toggleTheme } = useTheme();
 const shareLoading = ref(false);
 const pendingDeepLinkStationId = ref(null);
 
-const selectedFuel = ref('a95');
+const selectedFuels = ref(loadSelectedFuels());
+const activeSheetFuel = ref(selectedFuels.value[0] ?? 'a95');
 const selectedNetwork = ref(null);
 const selectedSaleType = ref(null);
 const canisterOnly = ref(false);
@@ -74,6 +83,10 @@ const mapLayer = ref('fuel');
 const mapViewRef = ref(null);
 const bottomSheetEl = ref(null);
 const sheetHeightPx = ref(0);
+
+const primaryFuel = computed(() => selectedFuels.value[0] ?? 'a95');
+
+const isAllFuelsSelected = computed(() => selectedFuels.value.length === FUEL_TYPES.length);
 
 const COOKIE_BANNER_LIFT_PX = 118;
 
@@ -194,19 +207,19 @@ const filteredStations = computed(() => {
     }
 
     if (selectedSaleType.value) {
-        list = list.filter((s) => {
-            const fuel = s.fuels?.find((f) => f.fuel_type === selectedFuel.value) ?? s.fuels?.[0];
+        list = list.filter((s) => selectedFuels.value.some((fuelType) => {
+            const fuel = s.fuels?.find((f) => f.fuel_type === fuelType);
 
             return fuel?.sale_types?.includes(selectedSaleType.value);
-        });
+        }));
     }
 
     if (canisterOnly.value) {
-        list = list.filter((s) => {
-            const fuel = s.fuels?.find((f) => f.fuel_type === selectedFuel.value) ?? s.fuels?.[0];
+        list = list.filter((s) => selectedFuels.value.some((fuelType) => {
+            const fuel = s.fuels?.find((f) => f.fuel_type === fuelType);
 
             return fuel?.canister_policy === 'allowed';
-        });
+        }));
     }
 
     if (favoritesOnly.value) {
@@ -216,9 +229,40 @@ const filteredStations = computed(() => {
     return list;
 });
 
+const displayStations = computed(() => filteredStations.value.map((station) => ({
+    ...station,
+    marker_color: mergeMarkerColor(station, selectedFuels.value),
+})));
+
+function toggleFuel(value) {
+    const current = new Set(selectedFuels.value);
+
+    if (current.has(value)) {
+        if (current.size <= 1) {
+            return;
+        }
+
+        current.delete(value);
+    } else {
+        current.add(value);
+    }
+
+    selectedFuels.value = normalizeFuelSelection([...current]);
+    saveSelectedFuels(selectedFuels.value);
+
+    if (!selectedFuels.value.includes(activeSheetFuel.value)) {
+        activeSheetFuel.value = selectedFuels.value[0];
+    }
+}
+
+function selectAllFuels() {
+    selectedFuels.value = FUEL_TYPES.map((item) => item.value);
+    saveSelectedFuels(selectedFuels.value);
+}
+
 function initApp() {
     applyQueryFuelFromUrl();
-    fetchStations(selectedFuel.value);
+    fetchStations(primaryFuel.value);
     recordVisitOnce();
     locate().catch(() => {
         // геолокация для карты необязательна после прохождения геозоны
@@ -227,9 +271,12 @@ function initApp() {
 
 function applyQueryFuelFromUrl() {
     const fuel = new URLSearchParams(window.location.search).get('fuel');
+    const parsed = parseFuelQueryParam(fuel);
 
-    if (fuel && FUEL_TYPES.some((item) => item.value === fuel)) {
-        selectedFuel.value = fuel;
+    if (parsed) {
+        selectedFuels.value = parsed;
+        activeSheetFuel.value = parsed[0];
+        saveSelectedFuels(parsed);
     }
 }
 
@@ -259,7 +306,7 @@ async function openDeepLinkStation(stationId) {
 
     if (!station) {
         try {
-            station = await fetchStation(stationId, selectedFuel.value);
+            station = await fetchStation(stationId, primaryFuel.value);
         } catch {
             return;
         }
@@ -270,7 +317,7 @@ async function openDeepLinkStation(stationId) {
 }
 
 function syncPushWatches() {
-    syncFavoritePushWatches(favoriteIds.value, selectedFuel.value);
+    syncFavoritePushWatches(favoriteIds.value, primaryFuel.value);
 }
 
 function onGeoGateGranted() {
@@ -337,7 +384,7 @@ watch(stations, async (list) => {
     await openDeepLinkStation(stationId);
 });
 
-watch([favoriteIds, selectedFuel], syncPushWatches, { deep: true });
+watch([favoriteIds, primaryFuel], syncPushWatches, { deep: true });
 
 watch(pushSubscribed, (active) => {
     if (active) {
@@ -373,18 +420,27 @@ function onCookieDecline() {
     cookieConsentGranted.value = true;
 }
 
-watch(selectedFuel, () => {
-    if (mode.value === 'nearby' && position.value) {
-        fetchNearby(position.value.lat, position.value.lng, selectedFuel.value);
-    } else {
-        fetchStations(selectedFuel.value);
-    }
-});
-
 async function selectStation(station) {
+    activeSheetFuel.value = pickDisplayFuel(station, selectedFuels.value)?.fuel_type
+        ?? primaryFuel.value;
     selectedStation.value = station;
+
     try {
-        selectedStation.value = await fetchStation(station.id, selectedFuel.value);
+        selectedStation.value = await fetchStation(station.id, activeSheetFuel.value);
+    } catch {
+        // оставляем данные из списка
+    }
+}
+
+async function onSheetFuelChange(fuelType) {
+    activeSheetFuel.value = fuelType;
+
+    if (!selectedStation.value) {
+        return;
+    }
+
+    try {
+        selectedStation.value = await fetchStation(selectedStation.value.id, fuelType);
     } catch {
         // оставляем данные из списка
     }
@@ -398,12 +454,12 @@ async function nearby() {
         if (!position.value || !isInBbox(position.value.lat, position.value.lng)) {
             geoNotice.value = 'Вы не в Севастополе, показаны все заправки';
             mode.value = 'all';
-            await fetchStations(selectedFuel.value);
+            await fetchStations(primaryFuel.value);
             return;
         }
 
         mode.value = 'nearby';
-        await fetchNearby(position.value.lat, position.value.lng, selectedFuel.value);
+        await fetchNearby(position.value.lat, position.value.lng, primaryFuel.value);
     } catch {
         // error shown via geo
     }
@@ -411,7 +467,7 @@ async function nearby() {
 
 function showAll() {
     mode.value = 'all';
-    fetchStations(selectedFuel.value);
+    fetchStations(primaryFuel.value);
 }
 
 async function onReportDone(data) {
@@ -428,9 +484,9 @@ async function onConfirmDone(data) {
 
 function refreshList() {
     if (mode.value === 'nearby' && position.value) {
-        fetchNearby(position.value.lat, position.value.lng, selectedFuel.value);
+        fetchNearby(position.value.lat, position.value.lng, primaryFuel.value);
     } else {
-        fetchStations(selectedFuel.value);
+        fetchStations(primaryFuel.value);
     }
 }
 
@@ -530,7 +586,7 @@ async function onConfirmCorrection(correction) {
 
     try {
         const res = await fetch(
-            apiUrl(`/api/stations/${selectedStation.value.id}/corrections/${correction.id}/confirm?fuel=${selectedFuel.value}`),
+            apiUrl(`/api/stations/${selectedStation.value.id}/corrections/${correction.id}/confirm?fuel=${activeSheetFuel.value}`),
             {
                 method: 'POST',
                 headers: {
@@ -587,7 +643,7 @@ async function onStationClosed() {
             refreshList();
         } else {
             try {
-                selectedStation.value = await fetchStation(stationId, selectedFuel.value);
+                selectedStation.value = await fetchStation(stationId, activeSheetFuel.value);
             } catch {
                 refreshList();
             }
@@ -693,12 +749,20 @@ async function onStationClosed() {
             <div class="filter-panel" :class="{ 'filter-panel--open': filtersOpen }">
                 <div class="filter-row filter-row--fuel" data-tour="fuel">
                     <button
+                        type="button"
+                        class="fuel-btn fuel-btn--compact fuel-btn--all"
+                        :class="{ active: isAllFuelsSelected }"
+                        @click="selectAllFuels"
+                    >
+                        Все
+                    </button>
+                    <button
                         v-for="f in FUEL_TYPES"
                         :key="f.value"
                         type="button"
                         class="fuel-btn fuel-btn--compact"
-                        :class="{ active: selectedFuel === f.value }"
-                        @click="selectedFuel = f.value"
+                        :class="{ active: selectedFuels.includes(f.value) }"
+                        @click="toggleFuel(f.value)"
                     >
                         {{ f.label }}
                     </button>
@@ -794,7 +858,7 @@ async function onStationClosed() {
             <MapView
                 ref="mapViewRef"
                 v-show="viewMode === 'map'"
-                :stations="filteredStations"
+                :stations="displayStations"
                 :favorite-ids="favoriteIds"
                 :selected-id="selectedStation?.id"
                 :user-position="position"
@@ -810,9 +874,9 @@ async function onStationClosed() {
 
             <StationList
                 v-show="viewMode === 'list'"
-                :stations="filteredStations"
+                :stations="displayStations"
                 :selected-id="selectedStation?.id"
-                :selected-fuel="selectedFuel"
+                :selected-fuels="selectedFuels"
                 :user-position="position"
                 :sort-by-distance="viewMode === 'list' && !!position"
                 :favorites-only="favoritesOnly"
@@ -883,7 +947,7 @@ async function onStationClosed() {
         >
             <StationCard
                 :station="selectedStation"
-                :selected-fuel="selectedFuel"
+                :selected-fuel="activeSheetFuel"
                 :selected-sale-type="selectedSaleType"
                 :canister-only="canisterOnly"
                 @report="showReport = true"
@@ -891,7 +955,7 @@ async function onStationClosed() {
                 @closed="onStationClosed"
                 @edit="openEditStation"
                 @confirm-correction="onConfirmCorrection"
-                @select-fuel="selectedFuel = $event"
+                @select-fuel="onSheetFuelChange"
                 @select-sale-type="selectedSaleType = $event"
                 @select-canister-only="canisterOnly = $event"
                 @close="selectedStation = null"
@@ -901,7 +965,7 @@ async function onStationClosed() {
         <ReportForm
             v-if="showReport && selectedStation"
             :station="selectedStation"
-            :selected-fuel="selectedFuel"
+            :selected-fuel="activeSheetFuel"
             @submit="onReportDone"
             @close="showReport = false"
         />
@@ -909,14 +973,14 @@ async function onStationClosed() {
         <ConfirmButton
             v-if="showConfirm && selectedStation"
             :station="selectedStation"
-            :selected-fuel="selectedFuel"
+            :selected-fuel="activeSheetFuel"
             @done="onConfirmDone"
             @close="showConfirm = false"
         />
 
         <AddStationForm
             v-if="showAddStation"
-            :selected-fuel="selectedFuel"
+            :selected-fuel="primaryFuel"
             :pick-coords="pickCoords"
             :user-position="position"
             @close="closeAddStation"
@@ -928,7 +992,7 @@ async function onStationClosed() {
         <EditStationForm
             v-if="showEditStation && selectedStation"
             :station="selectedStation"
-            :selected-fuel="selectedFuel"
+            :selected-fuel="activeSheetFuel"
             :pick-coords="pickCoords"
             :user-position="position"
             @close="closeEditStation"
@@ -953,7 +1017,7 @@ async function onStationClosed() {
 
         <StatsPanel
             v-if="showStats"
-            :selected-fuel="selectedFuel"
+            :selected-fuel="primaryFuel"
             @close="showStats = false"
         />
 
