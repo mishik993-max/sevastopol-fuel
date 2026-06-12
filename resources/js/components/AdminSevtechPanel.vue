@@ -105,7 +105,8 @@ function fuelsSummary(fuels) {
                 <h2>SevTech map (ТЭС)</h2>
                 <p class="admin-ai-lead">
                     Официальная карта наличия топлива
-                    <a href="https://fuel.sevtech.org/map/" target="_blank" rel="noopener noreferrer">fuel.sevtech.org/map</a>.
+                    <a href="https://fuel.sevtech.org/map/" target="_blank" rel="noopener noreferrer">fuel.sevtech.org/map</a>
+                    (API: <code>/map/a</code>).
                     Данные подтягиваются по API и записываются как отчёты (продажа по QR).
                 </p>
             </div>

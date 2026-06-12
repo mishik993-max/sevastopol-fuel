@@ -5,9 +5,12 @@ return [
 
     'base_url' => rtrim((string) env('SEVTECH_FUEL_BASE_URL', 'https://fuel.sevtech.org'), '/'),
 
-    'stations_path' => env('SEVTECH_FUEL_STATIONS_PATH', '/map/api/stations'),
+    'stations_path' => env('SEVTECH_FUEL_STATIONS_PATH', '/map/a'),
 
     'network_hint' => env('SEVTECH_FUEL_NETWORK', 'ТЭС'),
+
+    /** Заполненность ниже порога (%) → статус «мало» */
+    'low_percent_threshold' => (int) env('SEVTECH_FUEL_LOW_PERCENT', 25),
 
     'user_agent' => env(
         'SEVTECH_FUEL_USER_AGENT',

@@ -19,33 +19,43 @@ class SevtechFuelSyncTest extends TestCase
         config([
             'admin.password' => 'test-admin-secret',
             'sevtech.base_url' => 'https://fuel.sevtech.org',
-            'sevtech.stations_path' => '/map/api/stations',
+            'sevtech.stations_path' => '/map/a',
             'sevtech.enabled' => true,
+            'sevtech.low_percent_threshold' => 25,
         ]);
     }
 
-    public function test_sevtech_preview_matches_station_and_sync_creates_reports(): void
+    public function test_sevtech_preview_parses_gas_stations_and_sync_creates_reports(): void
     {
         $station = Station::query()->create([
-            'name' => 'ТЭС №1',
+            'name' => 'Фиолентовское',
             'network' => 'ТЭС',
-            'address' => 'Фиолентовское шоссе 5',
-            'latitude' => 44.58,
-            'longitude' => 33.48,
+            'address' => 'Фиолентовское, 5а',
+            'latitude' => 44.581116,
+            'longitude' => 33.478819,
             'source' => 'manual',
             'is_active' => true,
         ]);
 
         Http::fake([
-            'https://fuel.sevtech.org/map/api/stations' => Http::response([
-                'data' => [[
-                    'id' => 101,
-                    'name' => 'ТЭС Фиолент',
-                    'address' => 'Фиолентовское шоссе 5',
-                    'lat' => 44.58,
-                    'lng' => 33.48,
-                    'a92' => true,
-                    'a95' => false,
+            'https://fuel.sevtech.org/map/a' => Http::response([
+                'gas_stations' => [[
+                    'id' => 'gs21',
+                    'uuid' => '8690d9bb-4cdd-4203-9e01-76b9c3b3d0b9',
+                    'title' => 'Фиолентовское',
+                    'address' => 'Фиолентовское, 5а',
+                    'lat_lng' => ['lat' => 44.581116, 'lng' => 33.478819],
+                    'a92' => 'FUEL_STATUS_AVAILABLE',
+                    'a92_percent' => 75,
+                    'a95' => 'FUEL_STATUS_AVAILABLE',
+                    'a95_percent' => 40,
+                    'a95_ultra' => 'FUEL_STATUS_UNAVAILABLE',
+                    'diesel' => 'FUEL_STATUS_AVAILABLE',
+                    'diesel_percent' => 80,
+                    'diesel_ultra' => 'FUEL_STATUS_UNAVAILABLE',
+                    'a100' => 'FUEL_STATUS_UNAVAILABLE',
+                    'lpg' => 'FUEL_STATUS_UNAVAILABLE',
+                    'last_inventory_at' => '2026-06-12T11:08:24.430959+03:00',
                 ]],
             ], 200),
         ]);
@@ -66,8 +76,7 @@ class SevtechFuelSyncTest extends TestCase
             ->assertOk()
             ->json('data');
 
-        $this->assertSame(2, $sync['created']);
-        $this->assertDatabaseCount('reports', 2);
+        $this->assertSame(3, $sync['created']);
 
         $this->assertDatabaseHas('reports', [
             'station_id' => $station->id,
@@ -78,18 +87,77 @@ class SevtechFuelSyncTest extends TestCase
         $this->assertDatabaseHas('reports', [
             'station_id' => $station->id,
             'fuel_type' => 'a95',
+            'status' => 'available',
+        ]);
+
+        $this->assertDatabaseHas('reports', [
+            'station_id' => $station->id,
+            'fuel_type' => 'dt',
+            'status' => 'available',
+        ]);
+    }
+
+    public function test_sevtech_maps_out_of_stock_and_low_percent(): void
+    {
+        $station = Station::query()->create([
+            'name' => 'Гор.шоссе',
+            'network' => 'ТЭС',
+            'address' => 'Гор.шоссе, 15',
+            'latitude' => 44.547508,
+            'longitude' => 33.534253,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            'https://fuel.sevtech.org/map/a' => Http::response([
+                'gas_stations' => [[
+                    'id' => 'gs5',
+                    'uuid' => '38b8bdc5-5246-4c13-abce-c47128836221',
+                    'title' => 'Гор.шоссе',
+                    'address' => 'Гор.шоссе, 15',
+                    'lat_lng' => ['lat' => 44.547508, 'lng' => 33.534253],
+                    'a92' => 'FUEL_STATUS_AVAILABLE',
+                    'a92_percent' => 75,
+                    'a95' => 'FUEL_STATUS_OUT_OF_STOCK',
+                    'a95_ultra' => 'FUEL_STATUS_AVAILABLE',
+                    'a95_ultra_percent' => 10,
+                    'diesel' => 'FUEL_STATUS_UNAVAILABLE',
+                    'diesel_ultra' => 'FUEL_STATUS_AVAILABLE',
+                    'diesel_ultra_percent' => 85,
+                    'a100' => 'FUEL_STATUS_UNAVAILABLE',
+                    'lpg' => 'FUEL_STATUS_UNAVAILABLE',
+                ]],
+            ], 200),
+        ]);
+
+        $this->withHeader('X-Admin-Token', 'test-admin-secret')
+            ->postJson('/api/admin/sevtech/sync', [
+                'station_ids' => [$station->id],
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('reports', [
+            'station_id' => $station->id,
+            'fuel_type' => 'a95',
             'status' => 'none',
+        ]);
+
+        $this->assertDatabaseHas('reports', [
+            'station_id' => $station->id,
+            'fuel_type' => 'a95_plus',
+            'status' => 'low',
         ]);
     }
 
     public function test_sevtech_sync_skips_unchanged_status(): void
     {
         $station = Station::query()->create([
-            'name' => 'ТЭС №1',
+            'name' => 'Фиолентовское',
             'network' => 'ТЭС',
-            'address' => 'Фиолентовское шоссе 5',
-            'latitude' => 44.58,
-            'longitude' => 33.48,
+            'address' => 'Фиолентовское, 5а',
+            'latitude' => 44.581116,
+            'longitude' => 33.478819,
             'source' => 'manual',
             'is_active' => true,
         ]);
@@ -107,8 +175,22 @@ class SevtechFuelSyncTest extends TestCase
         ]);
 
         Http::fake([
-            'https://fuel.sevtech.org/map/api/stations' => Http::response([
-                ['id' => 1, 'name' => 'ТЭС Фиолент', 'address' => 'Фиолентовское шоссе 5', 'ai92' => true],
+            'https://fuel.sevtech.org/map/a' => Http::response([
+                'gas_stations' => [[
+                    'id' => 'gs21',
+                    'uuid' => '8690d9bb-4cdd-4203-9e01-76b9c3b3d0b9',
+                    'title' => 'Фиолентовское',
+                    'address' => 'Фиолентовское, 5а',
+                    'lat_lng' => ['lat' => 44.581116, 'lng' => 33.478819],
+                    'a92' => 'FUEL_STATUS_AVAILABLE',
+                    'a92_percent' => 75,
+                    'a95' => 'FUEL_STATUS_UNAVAILABLE',
+                    'a95_ultra' => 'FUEL_STATUS_UNAVAILABLE',
+                    'diesel' => 'FUEL_STATUS_UNAVAILABLE',
+                    'diesel_ultra' => 'FUEL_STATUS_UNAVAILABLE',
+                    'a100' => 'FUEL_STATUS_UNAVAILABLE',
+                    'lpg' => 'FUEL_STATUS_UNAVAILABLE',
+                ]],
             ], 200),
         ]);
 

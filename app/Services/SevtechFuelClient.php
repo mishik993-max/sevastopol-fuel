@@ -85,6 +85,10 @@ class SevtechFuelClient
     /** @return list<mixed> */
     private function extractRows(array $payload): array
     {
+        if (isset($payload['gas_stations']) && is_array($payload['gas_stations'])) {
+            return $payload['gas_stations'];
+        }
+
         foreach (['data', 'stations', 'items', 'points', 'features', 'results'] as $key) {
             if (isset($payload[$key]) && is_array($payload[$key])) {
                 return $payload[$key];
@@ -99,16 +103,20 @@ class SevtechFuelClient
      */
     private function normalizeRow(array $row, int $index): ?array
     {
+        if ($this->isSevtechStation($row)) {
+            return $this->normalizeSevtechRow($row);
+        }
+
         $geometry = is_array($row['geometry'] ?? null) ? $row['geometry'] : [];
         $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [];
         $properties = is_array($row['properties'] ?? null) ? $row['properties'] : $row;
 
-        $externalId = $this->pickString($properties, ['id', 'station_id', 'stationId', 'azs_id', 'azsId', 'uuid'])
-            ?? $this->pickString($row, ['id', 'station_id', 'stationId', 'azs_id', 'azsId', 'uuid'])
+        $externalId = $this->pickString($properties, ['uuid', 'id', 'station_id', 'stationId'])
+            ?? $this->pickString($row, ['uuid', 'id', 'station_id', 'stationId'])
             ?? (string) ($index + 1);
 
-        $name = $this->pickString($properties, ['name', 'title', 'station_name', 'stationName', 'label'])
-            ?? $this->pickString($row, ['name', 'title', 'station_name', 'stationName', 'label']);
+        $name = $this->pickString($properties, ['title', 'name', 'station_name', 'label'])
+            ?? $this->pickString($row, ['title', 'name', 'station_name', 'label']);
 
         $address = $this->pickString($properties, ['address', 'addr', 'location', 'street'])
             ?? $this->pickString($row, ['address', 'addr', 'location', 'street']);
@@ -117,13 +125,22 @@ class SevtechFuelClient
             return null;
         }
 
-        $latitude = $this->pickFloat($properties, ['latitude', 'lat', 'y'])
-            ?? $this->pickFloat($row, ['latitude', 'lat', 'y'])
-            ?? (isset($coordinates[1]) ? (float) $coordinates[1] : null);
+        $latLng = is_array($properties['lat_lng'] ?? null) ? $properties['lat_lng'] : [];
+        if ($latLng === [] && is_array($row['lat_lng'] ?? null)) {
+            $latLng = $row['lat_lng'];
+        }
 
-        $longitude = $this->pickFloat($properties, ['longitude', 'lng', 'lon', 'x'])
-            ?? $this->pickFloat($row, ['longitude', 'lng', 'lon', 'x'])
-            ?? (isset($coordinates[0]) ? (float) $coordinates[0] : null);
+        $latitude = isset($latLng['lat']) && is_numeric($latLng['lat'])
+            ? (float) $latLng['lat']
+            : ($this->pickFloat($properties, ['latitude', 'lat', 'y'])
+                ?? $this->pickFloat($row, ['latitude', 'lat', 'y'])
+                ?? (isset($coordinates[1]) ? (float) $coordinates[1] : null));
+
+        $longitude = isset($latLng['lng']) && is_numeric($latLng['lng'])
+            ? (float) $latLng['lng']
+            : ($this->pickFloat($properties, ['longitude', 'lng', 'lon', 'x'])
+                ?? $this->pickFloat($row, ['longitude', 'lng', 'lon', 'x'])
+                ?? (isset($coordinates[0]) ? (float) $coordinates[0] : null));
 
         $fuels = $this->extractFuels($properties);
 
@@ -143,7 +160,120 @@ class SevtechFuelClient
             'longitude' => $longitude,
             'network' => config('sevtech.network_hint'),
             'fuels' => $fuels,
+            'inventory_at' => $this->pickString($row, ['last_inventory_at']) ?? $this->pickString($properties, ['last_inventory_at']),
         ];
+    }
+
+    /** @param  array<string, mixed>  $row
+     * @return array<string, mixed>|null
+     */
+    private function normalizeSevtechRow(array $row): ?array
+    {
+        $externalId = $this->pickString($row, ['uuid', 'id']) ?? 'unknown';
+        $title = $this->pickString($row, ['title']) ?? 'АЗС';
+        $address = $this->pickString($row, ['address']);
+        $latLng = is_array($row['lat_lng'] ?? null) ? $row['lat_lng'] : [];
+        $fuels = $this->extractSevtechFuels($row);
+
+        if ($fuels === []) {
+            return null;
+        }
+
+        return [
+            'external_id' => 'sevtech:'.$externalId,
+            'name' => $title,
+            'address' => $address,
+            'latitude' => isset($latLng['lat']) ? (float) $latLng['lat'] : null,
+            'longitude' => isset($latLng['lng']) ? (float) $latLng['lng'] : null,
+            'network' => config('sevtech.network_hint'),
+            'fuels' => $fuels,
+            'inventory_at' => $this->pickString($row, ['last_inventory_at']),
+        ];
+    }
+
+    /** @param  array<string, mixed>  $row
+     * @return list<array{fuel_type: string, status: string, sale_types: list<string>, fill_percent: int|null}>
+     */
+    private function extractSevtechFuels(array $row): array
+    {
+        $fields = [
+            FuelType::A92->value => 'a92',
+            FuelType::A95->value => 'a95',
+            FuelType::A95Plus->value => 'a95_ultra',
+            FuelType::Dt->value => 'diesel',
+            FuelType::DtPlus->value => 'diesel_ultra',
+            FuelType::Gas->value => 'lpg',
+        ];
+
+        $mapped = [];
+
+        foreach ($fields as $fuelType => $key) {
+            if (! array_key_exists($key, $row)) {
+                continue;
+            }
+
+            $percent = isset($row[$key.'_percent']) && is_numeric($row[$key.'_percent'])
+                ? (int) $row[$key.'_percent']
+                : null;
+
+            $status = $this->normalizeSevtechStatus($row[$key], $percent);
+
+            if ($status === null) {
+                continue;
+            }
+
+            $mapped[] = [
+                'fuel_type' => $fuelType,
+                'status' => $status,
+                'sale_types' => [SaleType::Qr->value],
+                'fill_percent' => $percent,
+            ];
+        }
+
+        $hasA95Plus = collect($mapped)->contains(fn (array $fuel) => $fuel['fuel_type'] === FuelType::A95Plus->value);
+
+        if (! $hasA95Plus && array_key_exists('a100', $row)) {
+            $percent = isset($row['a100_percent']) && is_numeric($row['a100_percent'])
+                ? (int) $row['a100_percent']
+                : null;
+            $status = $this->normalizeSevtechStatus($row['a100'], $percent);
+
+            if ($status !== null) {
+                $mapped[] = [
+                    'fuel_type' => FuelType::A95Plus->value,
+                    'status' => $status,
+                    'sale_types' => [SaleType::Qr->value],
+                    'fill_percent' => $percent,
+                ];
+            }
+        }
+
+        return $this->dedupeFuels($mapped);
+    }
+
+    private function normalizeSevtechStatus(mixed $raw, ?int $percent): ?string
+    {
+        if (! is_string($raw)) {
+            return null;
+        }
+
+        return match ($raw) {
+            'FUEL_STATUS_UNAVAILABLE' => null,
+            'FUEL_STATUS_OUT_OF_STOCK' => FuelStatus::None->value,
+            'FUEL_STATUS_AVAILABLE' => $this->statusFromPercent($percent),
+            default => $this->normalizeStatus($raw),
+        };
+    }
+
+    private function statusFromPercent(?int $percent): string
+    {
+        $threshold = (int) config('sevtech.low_percent_threshold', 25);
+
+        if ($percent !== null && $percent < $threshold) {
+            return FuelStatus::Low->value;
+        }
+
+        return FuelStatus::Available->value;
     }
 
     /** @param  array<string, mixed>  $row
@@ -151,12 +281,12 @@ class SevtechFuelClient
      */
     private function extractFuels(array $row): array
     {
-        if (isset($row['fuels']) && is_array($row['fuels'])) {
-            return $this->parseFuelList($row['fuels']);
+        if ($this->isSevtechStation($row)) {
+            return $this->extractSevtechFuels($row);
         }
 
-        if (isset($row['fuel']) && is_array($row['fuel'])) {
-            return $this->parseFuelList($row['fuel']);
+        if (isset($row['fuels']) && is_array($row['fuels'])) {
+            return $this->parseFuelList($row['fuels']);
         }
 
         if (isset($row['availability']) && is_array($row['availability'])) {
@@ -190,6 +320,22 @@ class SevtechFuelClient
         }
 
         return $this->dedupeFuels($mapped);
+    }
+
+    /** @param  array<string, mixed>  $row */
+    private function isSevtechStation(array $row): bool
+    {
+        foreach (['a92', 'a95', 'diesel'] as $key) {
+            if (! isset($row[$key]) || ! is_string($row[$key])) {
+                continue;
+            }
+
+            if (str_starts_with($row[$key], 'FUEL_STATUS_')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @param  array<int|string, mixed>  $fuels
@@ -269,12 +415,12 @@ class SevtechFuelClient
     private function fuelKeyMap(): array
     {
         return [
-            FuelType::A92->value => ['a92', 'ai92', 'ai_92', '92', 'has_a92', 'hasAi92', 'has92', 'gasoline92', 'petrol92'],
-            FuelType::A95->value => ['a95', 'ai95', 'ai_95', '95', 'has_a95', 'hasAi95', 'has95', 'gasoline95', 'petrol95'],
-            FuelType::A95Plus->value => ['a95_plus', 'a95plus', 'ai95_plus', '95_plus', '95plus', 'has_a95_plus'],
-            FuelType::Dt->value => ['dt', 'diesel', 'has_dt', 'hasDt'],
-            FuelType::DtPlus->value => ['dt_plus', 'dtplus', 'diesel_plus'],
-            FuelType::Gas->value => ['gas', 'lpg', 'propane'],
+            FuelType::A92->value => ['a92', 'ai92', 'ai_92', '92'],
+            FuelType::A95->value => ['a95', 'ai95', 'ai_95', '95'],
+            FuelType::A95Plus->value => ['a95_ultra', 'a95_plus', 'a95plus', 'a100'],
+            FuelType::Dt->value => ['diesel', 'dt'],
+            FuelType::DtPlus->value => ['diesel_ultra', 'dt_plus', 'dtplus'],
+            FuelType::Gas->value => ['lpg', 'gas'],
         ];
     }
 
@@ -287,12 +433,12 @@ class SevtechFuelClient
         $value = mb_strtolower(trim(str_replace([' ', '-', '.'], ['', '_', ''], $raw)));
 
         return match (true) {
-            in_array($value, ['a92', 'ai92', '92', 'а92', 'аи92', 'бензин92'], true) => FuelType::A92->value,
-            in_array($value, ['a95', 'ai95', '95', 'а95', 'аи95'], true) => FuelType::A95->value,
-            str_contains($value, '95plus') || str_contains($value, '95_plus') || str_contains($value, 'ultra') => FuelType::A95Plus->value,
-            in_array($value, ['dt', 'diesel', 'дт', 'диз'], true) => FuelType::Dt->value,
-            str_contains($value, 'dtplus') || str_contains($value, 'dt_plus') => FuelType::DtPlus->value,
-            in_array($value, ['gas', 'lpg', 'propane', 'газ'], true) => FuelType::Gas->value,
+            in_array($value, ['a92', 'ai92', '92'], true) => FuelType::A92->value,
+            in_array($value, ['a95', 'ai95', '95'], true) => FuelType::A95->value,
+            in_array($value, ['a95_ultra', 'a95plus', 'a100'], true) => FuelType::A95Plus->value,
+            in_array($value, ['diesel', 'dt', 'дт'], true) => FuelType::Dt->value,
+            in_array($value, ['diesel_ultra', 'dt_plus', 'dtplus'], true) => FuelType::DtPlus->value,
+            in_array($value, ['lpg', 'gas', 'газ'], true) => FuelType::Gas->value,
             FuelType::tryFrom($value) !== null => $value,
             default => null,
         };
@@ -315,9 +461,12 @@ class SevtechFuelClient
         $value = mb_strtolower(trim($raw));
 
         return match (true) {
-            in_array($value, ['1', 'true', 'yes', 'y', 'available', 'есть', 'вналичии', 'да', 'on', 'open'], true) => FuelStatus::Available->value,
-            in_array($value, ['0', 'false', 'no', 'n', 'none', 'нет', 'отсутствует', 'off', 'closed'], true) => FuelStatus::None->value,
-            in_array($value, ['low', 'мало', 'малоосталось'], true) => FuelStatus::Low->value,
+            str_starts_with($value, 'fuel_status_available') => FuelStatus::Available->value,
+            str_starts_with($value, 'fuel_status_out_of_stock') => FuelStatus::None->value,
+            str_starts_with($value, 'fuel_status_unavailable') => null,
+            in_array($value, ['1', 'true', 'yes', 'available', 'есть'], true) => FuelStatus::Available->value,
+            in_array($value, ['0', 'false', 'no', 'none', 'нет'], true) => FuelStatus::None->value,
+            in_array($value, ['low', 'мало'], true) => FuelStatus::Low->value,
             FuelStatus::tryFrom($value) !== null => $value,
             default => null,
         };
