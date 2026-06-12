@@ -328,9 +328,7 @@ class AdminAiChatTest extends TestCase
             'is_active' => true,
         ]);
 
-        $matcher = app(StationMatcher::class);
-
-        $match = $matcher->bestMatch(
+        $match = app(StationMatcher::class)->bestMatch(
             'Атан',
             'АЗС-81',
             'ул. Хрусталёва, 62',
@@ -342,5 +340,72 @@ class AdminAiChatTest extends TestCase
         $this->assertNotNull($match);
         $this->assertSame($atan81->id, $match['station']->id);
         $this->assertContains($match['match_type'], ['number', 'address']);
+    }
+
+    public function test_station_matcher_refine_for_picker_filters_generic_network_only_matches(): void
+    {
+        Station::query()->create([
+            'name' => 'Атан',
+            'network' => 'Атан',
+            'address' => 'Севастополь',
+            'latitude' => 44.57,
+            'longitude' => 33.52,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        Station::query()->create([
+            'name' => 'ATAN',
+            'network' => 'Атан',
+            'address' => 'Севастополь',
+            'latitude' => 44.571,
+            'longitude' => 33.521,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        $atan81 = Station::query()->create([
+            'name' => 'АЗС-81',
+            'network' => 'ATAN',
+            'address' => 'г. Севастополь, ул. Хрусталева, 62',
+            'latitude' => 44.568,
+            'longitude' => 33.548,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        $matcher = app(StationMatcher::class);
+        $raw = $matcher->candidates('Атан', 'АЗС-81', 'ул. Хрусталёва, 62', restrictNetwork: true);
+        $refined = $matcher->refineForPicker($raw, 'АЗС-81', 'ул. Хрусталёва, 62');
+
+        $this->assertCount(1, $refined);
+        $this->assertSame($atan81->id, $refined[0]['station']->id);
+    }
+
+    public function test_station_display_option_label_uses_number_and_address(): void
+    {
+        $station = Station::query()->create([
+            'name' => 'Атан',
+            'network' => 'Атан',
+            'address' => 'ул. 4-я Бастионная улица 32А, Севастополь, Россия',
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        $this->assertStringContainsString('Бастионная', \App\Support\StationDisplay::optionLabel($station));
+        $this->assertStringNotContainsString('Атан · Атан', \App\Support\StationDisplay::optionLabel($station));
+
+        $numbered = Station::query()->create([
+            'name' => 'ATAN Россия №168',
+            'network' => 'Атан',
+            'address' => 'Камышовое шоссе 7в, Севастополь',
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        $this->assertSame(
+            'АЗС №168 · Камышовое шоссе 7в',
+            \App\Support\StationDisplay::optionLabel($numbered),
+        );
     }
 }

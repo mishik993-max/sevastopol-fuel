@@ -3763,6 +3763,18 @@ body {
     color: var(--muted-light);
 }
 
+.fuel-assistant-preview-linked {
+    margin-top: 8px;
+    font-size: 0.84rem;
+    color: var(--muted-light);
+}
+
+.fuel-assistant-preview-warning {
+    margin-top: 8px;
+    font-size: 0.84rem;
+    color: #fbbf24;
+}
+
 .fuel-assistant-preview-station {
     font-weight: 700;
     font-size: 0.95rem;

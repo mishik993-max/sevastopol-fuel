@@ -92,6 +92,61 @@ class StationMatcher
         return $deduped;
     }
 
+    /** @param  list<array{station: Station, score: float, match_type: string, distance_m?: int}>  $candidates
+     * @return list<array{station: Station, score: float, match_type: string, distance_m?: int}>
+     */
+    public function refineForPicker(array $candidates, string $nameHint, ?string $addressHint = null): array
+    {
+        if ($candidates === []) {
+            return [];
+        }
+
+        $number = $this->extractStationNumber(trim($nameHint.' '.($addressHint ?? '')));
+        $addressNeedle = $this->addressNeedle($nameHint, $addressHint);
+        $addressTokens = $this->addressTokens($addressNeedle);
+
+        if ($number !== null) {
+            $byNumber = array_values(array_filter(
+                $candidates,
+                fn (array $candidate) => $this->extractStationNumberFromStation($candidate['station']) === $number,
+            ));
+
+            if ($byNumber !== []) {
+                return array_slice($byNumber, 0, 5);
+            }
+        }
+
+        if ($addressTokens !== []) {
+            $byAddress = array_values(array_filter($candidates, function (array $candidate) use ($addressTokens) {
+                if ($candidate['score'] < 40) {
+                    return false;
+                }
+
+                $haystack = $this->normalize($candidate['station']->address.' '.$candidate['station']->name);
+
+                foreach ($addressTokens as $token) {
+                    if (str_contains($haystack, $token)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }));
+
+            if ($byAddress !== []) {
+                return array_slice($byAddress, 0, 5);
+            }
+        }
+
+        $strong = array_values(array_filter(
+            $candidates,
+            fn (array $candidate) => $candidate['score'] >= 55
+                || (in_array($candidate['match_type'], ['number', 'address'], true) && $candidate['score'] >= 48),
+        ));
+
+        return array_slice($strong, 0, 5);
+    }
+
     /** @return array{station: Station, score: float, match_type: string, distance_m?: int}|null */
     public function bestMatch(
         string $networkHint,
@@ -112,6 +167,8 @@ class StationMatcher
             $longitude,
             $restrictNetwork,
         );
+
+        $candidates = $this->refineForPicker($candidates, $nameHint, $addressHint);
 
         if ($candidates === []) {
             return null;

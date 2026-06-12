@@ -24,14 +24,23 @@ const messagesEl = ref(null);
 
 const hasPreview = computed(() => Boolean(preview.value?.fuels?.length));
 const canSend = computed(() => !loading.value && input.value.trim().length >= 2);
+const needsStationPick = computed(() => Boolean(preview.value?.needs_station_pick));
+const stationNotFound = computed(() => Boolean(preview.value?.station_not_found));
+const canConfirm = computed(() => Boolean(selectedStationId.value) && !stationNotFound.value);
 
-const stationOptions = computed(() => {
-    if (!preview.value?.candidates?.length) {
-        return [];
+const stationOptions = computed(() => preview.value?.candidates ?? []);
+
+function applyPreviewSelection(data) {
+    preview.value = data?.preview ?? null;
+
+    if (preview.value?.station_id) {
+        selectedStationId.value = preview.value.station_id;
+        return;
     }
 
-    return preview.value.candidates;
-});
+    const options = preview.value?.candidates ?? [];
+    selectedStationId.value = options.length === 1 ? options[0].station_id : null;
+}
 
 function fuelLabel(value) {
     return FUEL_TYPES.find((item) => item.value === value)?.label ?? value;
@@ -57,8 +66,7 @@ async function loadSession() {
 
         if (json.data) {
             messages.value = json.data.messages ?? [];
-            preview.value = json.data.preview ?? null;
-            selectedStationId.value = json.data.preview?.station_id ?? null;
+            applyPreviewSelection(json.data);
         } else {
             messages.value = [{
                 role: 'assistant',
@@ -124,8 +132,7 @@ async function sendMessage() {
             messages.value.push(lastAssistant);
         }
 
-        preview.value = data.preview ?? null;
-        selectedStationId.value = data.preview?.station_id ?? null;
+        applyPreviewSelection(data);
     } catch (e) {
         error.value = e.message;
     } finally {
@@ -135,7 +142,7 @@ async function sendMessage() {
 }
 
 async function confirmPreview() {
-    if (!hasPreview.value || confirming.value) return;
+    if (!hasPreview.value || confirming.value || !canConfirm.value) return;
 
     confirming.value = true;
     error.value = null;
@@ -192,8 +199,7 @@ async function rejectPreview() {
             messages.value.push(lastAssistant);
         }
 
-        preview.value = null;
-        selectedStationId.value = null;
+        applyPreviewSelection(data);
     } catch (e) {
         error.value = e.message;
     } finally {
@@ -278,8 +284,16 @@ onMounted(loadSession);
             </p>
             <p class="fuel-assistant-preview-fuels">{{ previewFuelsSummary() }}</p>
 
-            <label v-if="stationOptions.length" class="fuel-assistant-select-label">
-                Привязать к АЗС в базе
+            <p v-if="stationNotFound" class="fuel-assistant-preview-warning">
+                Такой АЗС нет в базе. Уточните адрес или нажмите «Не так».
+            </p>
+
+            <p v-else-if="!needsStationPick && selectedStationId" class="fuel-assistant-preview-linked">
+                На карте: {{ preview.station_label }}
+            </p>
+
+            <label v-else-if="needsStationPick && stationOptions.length" class="fuel-assistant-select-label">
+                Выберите АЗС на карте
                 <select v-model.number="selectedStationId" class="field-input fuel-assistant-select">
                     <option :value="null" disabled>— выберите —</option>
                     <option
@@ -288,7 +302,6 @@ onMounted(loadSession);
                         :value="item.station_id"
                     >
                         {{ item.label }}
-                        <template v-if="item.distance_m != null"> · {{ item.distance_m }} м</template>
                     </option>
                 </select>
             </label>
@@ -297,7 +310,7 @@ onMounted(loadSession);
                 <button
                     type="button"
                     class="btn btn-primary btn-sm"
-                    :disabled="confirming || !selectedStationId"
+                    :disabled="confirming || !canConfirm"
                     @click="confirmPreview"
                 >
                     {{ confirming ? 'Публикация…' : 'Всё верно' }}

@@ -9,6 +9,7 @@ use App\Enums\SaleType;
 use App\Models\FuelAssistantSession;
 use App\Models\Report;
 use App\Models\Station;
+use App\Support\StationDisplay;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -425,15 +426,27 @@ class FuelAssistantService
             $networkHint,
             $nameHint,
             $addressHint,
-            8,
+            12,
             $matchLatitude,
             $matchLongitude,
             restrictNetwork: $restrictNetwork,
         );
 
+        $candidates = $this->matcher->refineForPicker($candidates, $nameHint, $addressHint);
+
+        if ($match === null && count($candidates) === 1 && $candidates[0]['score'] >= 45) {
+            $match = $candidates[0];
+        }
+
         $detectedLabel = trim($networkHint) !== '' && trim($nameHint) !== ''
             ? trim("{$networkHint} · {$nameHint}")
             : null;
+
+        $stationId = $match['station']->id ?? null;
+        $confidence = $match['score'] ?? null;
+        $needsStationPick = $stationId === null
+            ? count($candidates) > 0
+            : count($candidates) > 1;
 
         return [
             'network' => $networkHint,
@@ -444,18 +457,20 @@ class FuelAssistantService
             'queue_size' => $stationQueue,
             'queue_label' => $stationQueue ? QueueSize::from($stationQueue)->label() : null,
             'fuels' => $fuels,
-            'station_id' => $match['station']->id ?? null,
+            'station_id' => $stationId,
             'station_label' => $match
-                ? "{$match['station']->network} · {$match['station']->name}"
+                ? StationDisplay::cardLabel($match['station'])
                 : $detectedLabel,
             'station_address' => $match['station']->address ?? $addressHint,
-            'confidence' => $match['score'] ?? null,
+            'confidence' => $confidence,
             'match_type' => $match['match_type'] ?? null,
             'match_distance_m' => $match['distance_m'] ?? null,
+            'needs_station_pick' => $needsStationPick,
+            'station_not_found' => $stationId === null && $candidates === [],
             'candidates' => array_map(fn (array $candidate) => [
                 'station_id' => $candidate['station']->id,
-                'label' => "{$candidate['station']->network} · {$candidate['station']->name}",
-                'address' => $candidate['station']->address,
+                'label' => StationDisplay::optionLabel($candidate['station']),
+                'address' => StationDisplay::shortAddress($candidate['station']->address),
                 'score' => $candidate['score'],
                 'match_type' => $candidate['match_type'],
                 'distance_m' => $candidate['distance_m'] ?? null,
