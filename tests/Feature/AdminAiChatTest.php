@@ -76,7 +76,13 @@ class AdminAiChatTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.items.0.station_id', $station->id)
             ->assertJsonPath('data.network_notes.0', 'В сети ТЭС только QR')
-            ->assertJsonStructure(['data' => ['items' => [['queue_id']]]]);
+            ->assertJsonStructure([
+                'data' => [
+                    'items' => [['queue_id']],
+                    'parse_stats' => ['matched', 'unmatched', 'total'],
+                    'ai_debug' => ['model', 'duration_ms', 'system_prompt', 'user_message', 'response_raw', 'response_parsed'],
+                ],
+            ]);
 
         $items = $parse->json('data.items');
 

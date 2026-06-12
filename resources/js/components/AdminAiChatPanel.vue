@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { apiUrl, parseApiResponse } from '../api';
+import AdminAiImportRow from './AdminAiImportRow.vue';
 
 const props = defineProps({
     authHeaders: { type: Function, required: true },
@@ -14,19 +15,18 @@ const message = ref('');
 const parsing = ref(false);
 const applying = ref(false);
 const loadingQueue = ref(false);
-const preview = ref(null);
-const rows = ref([]);
+const lastParse = ref(null);
+const aiDebugOpen = ref(true);
+const aiDebugTab = ref('request');
 const queueRows = ref([]);
-
-const selectedCount = computed(() => rows.value.filter((row) => row.selected && row.station_id).length);
-const reportCount = computed(() => rows.value
-    .filter((row) => row.selected && row.station_id)
-    .reduce((sum, row) => sum + row.fuels.length, 0));
+const highlightedQueueIds = ref([]);
 
 const queueSelectedCount = computed(() => queueRows.value.filter((row) => row.selected && row.station_id).length);
 const queueReportCount = computed(() => queueRows.value
     .filter((row) => row.selected && row.station_id)
     .reduce((sum, row) => sum + row.fuels.length, 0));
+
+const queueMatchedCount = computed(() => queueRows.value.filter((row) => row.station_id).length);
 
 async function loadStatus() {
     try {
@@ -63,8 +63,8 @@ async function parseMessage() {
     if (!message.value.trim()) return;
 
     parsing.value = true;
-    preview.value = null;
-    rows.value = [];
+    lastParse.value = null;
+    highlightedQueueIds.value = [];
     emit('error', null);
 
     try {
@@ -77,11 +77,15 @@ async function parseMessage() {
 
         if (!res.ok) throw new Error(json.message || 'Ошибка разбора');
 
-        preview.value = json.data;
-        rows.value = [
-            ...(json.data.items || []).map((item) => normalizeRow(item, true)),
-            ...(json.data.unmatched || []).map((item) => normalizeRow(item, false)),
-        ];
+        lastParse.value = json.data;
+        aiDebugOpen.value = true;
+        aiDebugTab.value = 'request';
+
+        highlightedQueueIds.value = [
+            ...(json.data.items || []),
+            ...(json.data.unmatched || []),
+        ].map((item) => item.queue_id).filter(Boolean);
+
         await loadQueue();
     } catch (e) {
         emit('error', e.message);
@@ -100,55 +104,16 @@ function normalizeRow(item, selectedDefault) {
     };
 }
 
-function selectedCandidate(row) {
-    if (!row.station_id) {
-        return null;
+function formatJson(value) {
+    try {
+        return JSON.stringify(value, null, 2);
+    } catch {
+        return String(value ?? '');
     }
-
-    return row.candidates?.find((candidate) => candidate.station_id === row.station_id) ?? {
-        station_id: row.station_id,
-        label: row.station_label,
-        address: row.station_address,
-        score: row.confidence,
-        map_url: mapUrl(row.station_id),
-    };
 }
 
-function mapUrl(stationId) {
-    return stationId ? `/?station=${stationId}` : '#';
-}
-
-function confidenceClass(score) {
-    if (score == null) return '';
-    if (score >= 75) return 'admin-ai-confidence--good';
-    if (score >= 50) return 'admin-ai-confidence--ok';
-
-    return 'admin-ai-confidence--low';
-}
-
-function fuelsLabel(fuels) {
-    return fuels.map((fuel) => `${fuel.fuel_label} (${fuel.status_label})`).join(', ');
-}
-
-function saleTypesLabel(fuels) {
-    const labels = [...new Set(fuels.flatMap((fuel) => fuel.sale_types_labels || []))];
-
-    return labels.join(', ') || '—';
-}
-
-function formatQueuedAt(iso) {
-    if (!iso) return null;
-
-    return new Date(iso).toLocaleString('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
-
-async function applyRows(sourceRows, { clearPreview = false } = {}) {
-    const selected = sourceRows.filter((row) => row.selected && row.station_id);
+async function applyQueue() {
+    const selected = queueRows.value.filter((row) => row.selected && row.station_id);
 
     const items = selected.map((row) => ({
         station_id: row.station_id,
@@ -161,7 +126,7 @@ async function applyRows(sourceRows, { clearPreview = false } = {}) {
     }));
 
     if (!items.length) {
-        emit('error', 'Выберите хотя бы одну АЗС для импорта');
+        emit('error', 'Выберите хотя бы одну сопоставленную АЗС');
 
         return;
     }
@@ -186,12 +151,9 @@ async function applyRows(sourceRows, { clearPreview = false } = {}) {
 
         if (!res.ok) throw new Error(json.message || 'Ошибка применения');
 
-        if (clearPreview) {
-            preview.value = null;
-            rows.value = [];
-            message.value = '';
-        }
-
+        lastParse.value = null;
+        highlightedQueueIds.value = [];
+        message.value = '';
         await loadQueue();
         emit('saved', json.message);
     } catch (e) {
@@ -214,12 +176,17 @@ async function removeFromQueue(queueId) {
 
         if (!res.ok) throw new Error(json.message || 'Ошибка удаления');
 
+        highlightedQueueIds.value = highlightedQueueIds.value.filter((id) => id !== queueId);
         await loadQueue();
     } catch (e) {
         emit('error', e.message);
     } finally {
         applying.value = false;
     }
+}
+
+function isHighlighted(queueId) {
+    return highlightedQueueIds.value.includes(queueId);
 }
 
 onMounted(async () => {
@@ -230,240 +197,188 @@ onMounted(async () => {
 
 <template>
     <section class="admin-section admin-ai-section">
-        <div class="admin-section-head">
+        <div class="admin-ai-hero">
             <div>
                 <h2>AI-импорт топлива</h2>
-                <p class="hint admin-analytics-lead">
+                <p class="admin-ai-lead">
                     Вставьте текст из Telegram — нейросеть разберёт список один раз.
-                    Неимпортированные строки сохраняются в очереди без повторного запроса к AI.
+                    Строки сохраняются в очереди и сопоставляются без повторного запроса к AI.
                 </p>
             </div>
-        </div>
-
-        <div v-if="queueRows.length" class="admin-ai-queue">
-            <div class="admin-ai-preview-head">
-                <strong>Ожидают импорта ({{ queueRows.length }})</strong>
-                <button
-                    type="button"
-                    class="btn btn-secondary btn-sm"
-                    :disabled="loadingQueue || applying"
-                    @click="loadQueue"
-                >
-                    {{ loadingQueue ? '…' : 'Обновить' }}
-                </button>
+            <div class="admin-ai-hero-badges">
+                <span v-if="model" class="admin-ai-pill">{{ model }}</span>
+                <span v-if="queueRows.length" class="admin-ai-pill admin-ai-pill--accent">
+                    Очередь: {{ queueRows.length }}
+                </span>
             </div>
-
-            <p class="hint admin-ai-preview-hint">
-                Сопоставление обновляется без нейросети. Выберите АЗС, проверьте на карте и примените.
-            </p>
-
-            <div class="admin-ai-rows">
-                <article
-                    v-for="row in queueRows"
-                    :key="row.queue_id"
-                    class="admin-ai-row"
-                    :class="{
-                        'admin-ai-row--low': selectedCandidate(row)?.score != null && selectedCandidate(row).score < 50,
-                    }"
-                >
-                    <label class="admin-ai-row-check">
-                        <input
-                            v-model="row.selected"
-                            type="checkbox"
-                            :disabled="!row.station_id || applying"
-                        />
-                    </label>
-
-                    <div class="admin-ai-row-body">
-                        <p class="admin-ai-row-source">{{ row.raw }}</p>
-                        <p v-if="formatQueuedAt(row.queued_at)" class="admin-ai-row-queued hint">
-                            В очереди с {{ formatQueuedAt(row.queued_at) }}
-                        </p>
-                        <p class="admin-ai-row-fuels">{{ fuelsLabel(row.fuels) }}</p>
-                        <p class="admin-ai-row-meta hint">Продажа: {{ saleTypesLabel(row.fuels) }}</p>
-
-                        <label v-if="row.candidates?.length" class="field admin-ai-row-select">
-                            АЗС в базе
-                            <select v-model.number="row.station_id" class="field-input" :disabled="applying">
-                                <option :value="null">— выберите —</option>
-                                <option
-                                    v-for="candidate in row.candidates"
-                                    :key="candidate.station_id"
-                                    :value="candidate.station_id"
-                                >
-                                    {{ candidate.label }} ({{ candidate.score }}%)
-                                </option>
-                            </select>
-                        </label>
-
-                        <div v-if="selectedCandidate(row)" class="admin-ai-match-card">
-                            <p class="admin-ai-row-match">
-                                {{ selectedCandidate(row).label }}
-                                <span
-                                    class="admin-ai-confidence"
-                                    :class="confidenceClass(selectedCandidate(row).score)"
-                                >
-                                    {{ selectedCandidate(row).score }}%
-                                </span>
-                            </p>
-                            <p v-if="selectedCandidate(row).address" class="admin-ai-row-address hint">
-                                {{ selectedCandidate(row).address }}
-                            </p>
-                            <a
-                                :href="selectedCandidate(row).map_url || mapUrl(row.station_id)"
-                                class="admin-ai-map-link"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                На карте ↗
-                            </a>
-                        </div>
-
-                        <p v-else class="admin-ai-row-warn">Не найдено совпадение в базе</p>
-
-                        <button
-                            type="button"
-                            class="btn btn-ghost btn-sm admin-ai-remove"
-                            :disabled="applying"
-                            @click="removeFromQueue(row.queue_id)"
-                        >
-                            Убрать из очереди
-                        </button>
-                    </div>
-                </article>
-            </div>
-
-            <button
-                type="button"
-                class="btn btn-primary"
-                :disabled="applying || queueSelectedCount === 0"
-                @click="applyRows(queueRows)"
-            >
-                {{ applying ? 'Применение…' : `Применить из очереди (${queueReportCount})` }}
-            </button>
         </div>
 
         <p v-if="!configured" class="admin-alert">
             Задайте <code>TIMEWEB_AI_API_KEY</code> в <code>.env</code> и перезапустите приложение.
         </p>
-        <p v-else class="admin-ai-model hint">Модель: {{ model }}</p>
 
-        <label class="field admin-ai-input">
-            Текст сообщения
-            <textarea
-                v-model="message"
-                class="field-textarea admin-ai-textarea"
-                rows="10"
-                placeholder="Вставьте сообщение о продаже топлива…"
-                :disabled="!configured || parsing || applying"
-            />
-        </label>
+        <div class="admin-ai-layout">
+            <div class="admin-ai-col admin-ai-col--input">
+                <div class="admin-ai-panel">
+                    <div class="admin-ai-panel-head">
+                        <strong>1. Текст сообщения</strong>
+                    </div>
 
-        <div class="admin-ai-actions">
-            <button
-                type="button"
-                class="btn btn-primary"
-                :disabled="!configured || parsing || applying || !message.trim()"
-                @click="parseMessage"
-            >
-                {{ parsing ? 'Разбор…' : 'Разобрать через AI' }}
-            </button>
-        </div>
+                    <textarea
+                        v-model="message"
+                        class="field-textarea admin-ai-textarea"
+                        rows="12"
+                        placeholder="Вставьте сообщение о продаже топлива из Telegram…"
+                        :disabled="!configured || parsing || applying"
+                    />
 
-        <template v-if="preview">
-            <div v-if="preview.summary" class="admin-ai-summary">
-                {{ preview.summary }}
-            </div>
-
-            <ul v-if="preview.network_notes?.length" class="admin-ai-notes">
-                <li v-for="(note, index) in preview.network_notes" :key="index">{{ note }}</li>
-            </ul>
-
-            <p v-if="!rows.length" class="hint">AI не нашёл АЗС в тексте</p>
-
-            <div v-else class="admin-ai-preview">
-                <div class="admin-ai-preview-head">
-                    <strong>Новый разбор</strong>
-                    <span class="hint">{{ selectedCount }} АЗС · {{ reportCount }} отчётов</span>
+                    <div class="admin-ai-panel-actions">
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            :disabled="!configured || parsing || applying || !message.trim()"
+                            @click="parseMessage"
+                        >
+                            {{ parsing ? 'Разбор…' : 'Разобрать через AI' }}
+                        </button>
+                    </div>
                 </div>
 
-                <p class="hint admin-ai-preview-hint">
-                    Все строки сохранены в очередь. Можно применить сейчас или вернуться позже без AI.
-                </p>
+                <div v-if="lastParse" class="admin-ai-panel admin-ai-panel--result">
+                    <div class="admin-ai-panel-head">
+                        <strong>2. Результат разбора</strong>
+                        <span v-if="lastParse.parse_stats" class="admin-ai-panel-meta">
+                            {{ lastParse.parse_stats.matched }} сопоставлено ·
+                            {{ lastParse.parse_stats.unmatched }} без совпадения
+                        </span>
+                    </div>
 
-                <div class="admin-ai-rows">
-                    <article
-                        v-for="row in rows"
-                        :key="row.queue_id || row.index"
-                        class="admin-ai-row"
-                        :class="{
-                            'admin-ai-row--low': selectedCandidate(row)?.score != null && selectedCandidate(row).score < 50,
-                        }"
+                    <p v-if="lastParse.summary" class="admin-ai-summary">{{ lastParse.summary }}</p>
+
+                    <ul v-if="lastParse.network_notes?.length" class="admin-ai-notes">
+                        <li v-for="(note, index) in lastParse.network_notes" :key="index">{{ note }}</li>
+                    </ul>
+
+                    <p class="admin-ai-result-hint">
+                        Все строки добавлены в очередь справа. Проверьте сопоставление и нажмите «Применить».
+                    </p>
+                </div>
+
+                <div v-if="lastParse?.ai_debug" class="admin-ai-panel admin-ai-panel--debug">
+                    <button
+                        type="button"
+                        class="admin-ai-debug-toggle"
+                        :aria-expanded="aiDebugOpen"
+                        @click="aiDebugOpen = !aiDebugOpen"
                     >
-                        <label class="admin-ai-row-check">
-                            <input
-                                v-model="row.selected"
-                                type="checkbox"
-                                :disabled="!row.station_id || applying"
-                            />
-                        </label>
+                        <strong>Журнал нейросети</strong>
+                        <span class="admin-ai-panel-meta">
+                            {{ lastParse.ai_debug.duration_ms }} мс
+                        </span>
+                        <span class="admin-ai-debug-chevron">{{ aiDebugOpen ? '▾' : '▸' }}</span>
+                    </button>
 
-                        <div class="admin-ai-row-body">
-                            <p class="admin-ai-row-source">{{ row.raw }}</p>
-                            <p class="admin-ai-row-fuels">{{ fuelsLabel(row.fuels) }}</p>
-                            <p class="admin-ai-row-meta hint">Продажа: {{ saleTypesLabel(row.fuels) }}</p>
-
-                            <label v-if="row.candidates?.length" class="field admin-ai-row-select">
-                                АЗС в базе
-                                <select v-model.number="row.station_id" class="field-input" :disabled="applying">
-                                    <option :value="null">— выберите —</option>
-                                    <option
-                                        v-for="candidate in row.candidates"
-                                        :key="candidate.station_id"
-                                        :value="candidate.station_id"
-                                    >
-                                        {{ candidate.label }} ({{ candidate.score }}%)
-                                    </option>
-                                </select>
-                            </label>
-
-                            <div v-if="selectedCandidate(row)" class="admin-ai-match-card">
-                                <p class="admin-ai-row-match">
-                                    {{ selectedCandidate(row).label }}
-                                    <span
-                                        class="admin-ai-confidence"
-                                        :class="confidenceClass(selectedCandidate(row).score)"
-                                    >
-                                        {{ selectedCandidate(row).score }}%
-                                    </span>
-                                </p>
-                                <p v-if="selectedCandidate(row).address" class="admin-ai-row-address hint">
-                                    {{ selectedCandidate(row).address }}
-                                </p>
-                                <a
-                                    :href="selectedCandidate(row).map_url || mapUrl(row.station_id)"
-                                    class="admin-ai-map-link"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    На карте ↗
-                                </a>
-                            </div>
-
-                            <p v-else class="admin-ai-row-warn">Не найдено совпадение в базе</p>
+                    <div v-show="aiDebugOpen" class="admin-ai-debug-body">
+                        <div class="admin-ai-debug-tabs" role="tablist">
+                            <button
+                                type="button"
+                                class="admin-ai-debug-tab"
+                                :class="{ active: aiDebugTab === 'request' }"
+                                @click="aiDebugTab = 'request'"
+                            >
+                                Запрос
+                            </button>
+                            <button
+                                type="button"
+                                class="admin-ai-debug-tab"
+                                :class="{ active: aiDebugTab === 'response' }"
+                                @click="aiDebugTab = 'response'"
+                            >
+                                Ответ JSON
+                            </button>
+                            <button
+                                type="button"
+                                class="admin-ai-debug-tab"
+                                :class="{ active: aiDebugTab === 'parsed' }"
+                                @click="aiDebugTab = 'parsed'"
+                            >
+                                Разбор
+                            </button>
                         </div>
-                    </article>
+
+                        <div v-if="aiDebugTab === 'request'" class="admin-ai-debug-pane">
+                            <p class="admin-ai-debug-label">Модель</p>
+                            <pre class="admin-ai-code">{{ lastParse.ai_debug.model }}</pre>
+
+                            <p class="admin-ai-debug-label">System prompt</p>
+                            <pre class="admin-ai-code admin-ai-code--scroll">{{ lastParse.ai_debug.system_prompt }}</pre>
+
+                            <p class="admin-ai-debug-label">User message</p>
+                            <pre class="admin-ai-code admin-ai-code--scroll">{{ lastParse.ai_debug.user_message }}</pre>
+                        </div>
+
+                        <div v-else-if="aiDebugTab === 'response'" class="admin-ai-debug-pane">
+                            <pre class="admin-ai-code admin-ai-code--scroll">{{ lastParse.ai_debug.response_raw }}</pre>
+                        </div>
+
+                        <div v-else class="admin-ai-debug-pane">
+                            <pre class="admin-ai-code admin-ai-code--scroll">{{ formatJson(lastParse.ai_debug.response_parsed) }}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-ai-col admin-ai-col--queue">
+                <div class="admin-ai-panel admin-ai-panel--queue">
+                    <div class="admin-ai-panel-head">
+                        <strong>Очередь импорта</strong>
+                        <button
+                            type="button"
+                            class="btn btn-secondary btn-sm"
+                            :disabled="loadingQueue || applying"
+                            @click="loadQueue"
+                        >
+                            {{ loadingQueue ? '…' : 'Обновить' }}
+                        </button>
+                    </div>
+
+                    <p class="admin-ai-queue-meta">
+                        {{ queueMatchedCount }} из {{ queueRows.length }} сопоставлено ·
+                        {{ queueReportCount }} отчётов выбрано
+                    </p>
+
+                    <p v-if="!queueRows.length && !loadingQueue" class="admin-ai-queue-empty">
+                        Очередь пуста. Разберите сообщение слева — строки появятся здесь.
+                    </p>
+
+                    <div v-else class="admin-ai-card-list">
+                        <AdminAiImportRow
+                            v-for="row in queueRows"
+                            :key="row.queue_id"
+                            :row="row"
+                            :applying="applying"
+                            :highlight="isHighlighted(row.queue_id)"
+                            show-remove
+                            @remove="removeFromQueue"
+                        />
+                    </div>
                 </div>
 
-                <button
-                    type="button"
-                    class="btn btn-primary"
-                    :disabled="applying || selectedCount === 0"
-                    @click="applyRows(rows, { clearPreview: true })"
-                >
-                    {{ applying ? 'Применение…' : `Применить (${reportCount})` }}
-                </button>
+                <div v-if="queueRows.length" class="admin-ai-apply-bar">
+                    <div class="admin-ai-apply-meta">
+                        <strong>{{ queueSelectedCount }} АЗС</strong>
+                        <span>{{ queueReportCount }} отчётов</span>
+                    </div>
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        :disabled="applying || queueSelectedCount === 0"
+                        @click="applyQueue"
+                    >
+                        {{ applying ? 'Применение…' : 'Применить выбранное' }}
+                    </button>
+                </div>
             </div>
-        </template>
+        </div>
     </section>
 </template>

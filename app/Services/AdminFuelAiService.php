@@ -22,14 +22,33 @@ class AdminFuelAiService
     /** @return array<string, mixed> */
     public function parseAndMatch(string $message): array
     {
-        $parsed = $this->ai->chatJson([
-            ['role' => 'system', 'content' => $this->systemPrompt()],
+        $systemPrompt = $this->systemPrompt();
+        $messages = [
+            ['role' => 'system', 'content' => $systemPrompt],
             ['role' => 'user', 'content' => $message],
-        ]);
+        ];
 
+        $aiResult = $this->ai->chatJsonWithMeta($messages);
+        $parsed = $aiResult['data'];
         $preview = $this->buildPreview($parsed, $message);
+        $preview = $this->attachQueueIds($preview, $message);
 
-        return $this->attachQueueIds($preview, $message);
+        $preview['ai_debug'] = [
+            'model' => $aiResult['model'],
+            'duration_ms' => $aiResult['duration_ms'],
+            'system_prompt' => $systemPrompt,
+            'user_message' => $message,
+            'response_raw' => $aiResult['raw'],
+            'response_parsed' => $parsed,
+        ];
+
+        $preview['parse_stats'] = [
+            'matched' => count($preview['items']),
+            'unmatched' => count($preview['unmatched']),
+            'total' => count($preview['items']) + count($preview['unmatched']),
+        ];
+
+        return $preview;
     }
 
     /** @return list<array<string, mixed>> */
