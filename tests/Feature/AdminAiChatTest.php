@@ -1,0 +1,98 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Report;
+use App\Models\Station;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
+
+class AdminAiChatTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([
+            'admin.password' => 'test-admin-secret',
+            'ai.api_key' => 'test-key',
+            'ai.base_uri' => 'https://api.timeweb.ai/v1',
+            'ai.model' => 'gemini/gemini-2.5-flash-lite',
+        ]);
+    }
+
+    public function test_ai_chat_status_reports_configuration(): void
+    {
+        $this->withHeader('X-Admin-Token', 'test-admin-secret')
+            ->getJson('/api/admin/ai-chat/status')
+            ->assertOk()
+            ->assertJsonPath('data.configured', true)
+            ->assertJsonPath('data.model', 'gemini/gemini-2.5-flash-lite');
+    }
+
+    public function test_ai_chat_parse_matches_stations_and_apply_creates_reports(): void
+    {
+        $station = Station::query()->create([
+            'name' => 'АЗС 61 Верхнесадовое',
+            'network' => 'Атан',
+            'address' => 'Верхнесадовое',
+            'latitude' => 44.6,
+            'longitude' => 33.5,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            'https://api.timeweb.ai/v1/chat/completions' => Http::response([
+                'choices' => [[
+                    'message' => [
+                        'content' => json_encode([
+                            'summary' => 'С 10:00 на Атан свободная продажа',
+                            'network' => 'Атан',
+                            'network_notes' => ['В сети ТЭС только QR'],
+                            'stations' => [[
+                                'name_hint' => 'АЗС 61 Верхнесадовое',
+                                'address_hint' => 'Верхнесадовое',
+                                'sale_types' => ['regular'],
+                                'fuels' => [
+                                    ['fuel_type' => 'a92', 'status' => 'available'],
+                                    ['fuel_type' => 'a95_plus', 'status' => 'available'],
+                                ],
+                            ]],
+                        ], JSON_UNESCAPED_UNICODE),
+                    ],
+                ]],
+            ], 200),
+        ]);
+
+        $parse = $this->withHeader('X-Admin-Token', 'test-admin-secret')
+            ->postJson('/api/admin/ai-chat/parse', [
+                'message' => '1️⃣ АЗС 61 Верхнесадовое (АИ-92, АИ-95 Ultra)',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.items.0.station_id', $station->id)
+            ->assertJsonPath('data.network_notes.0', 'В сети ТЭС только QR');
+
+        $items = $parse->json('data.items');
+
+        $this->withHeader('X-Admin-Token', 'test-admin-secret')
+            ->postJson('/api/admin/ai-chat/apply', [
+                'items' => [[
+                    'station_id' => $items[0]['station_id'],
+                    'fuels' => array_map(fn (array $fuel) => [
+                        'fuel_type' => $fuel['fuel_type'],
+                        'statuses' => $fuel['statuses'],
+                        'sale_types' => $fuel['sale_types'],
+                        'comment' => $fuel['comment'],
+                    ], $items[0]['fuels']),
+                ]],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.created', 2);
+
+        $this->assertSame(2, Report::query()->where('station_id', $station->id)->count());
+    }
+}

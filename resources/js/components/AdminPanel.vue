@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
+import AdminAiChatPanel from './AdminAiChatPanel.vue';
 import AdminAnalyticsPanel from './AdminAnalyticsPanel.vue';
 import AdminSystemPanel from './AdminSystemPanel.vue';
 import AdminSettingsPanel from './AdminSettingsPanel.vue';
@@ -20,6 +21,7 @@ const PAGE_META = {
     reports: { title: 'Отчёты', desc: 'Модерация пользовательских отчётов о наличии топлива' },
     osm: { title: 'Импорт OSM', desc: 'Загрузка и синхронизация заправок из OpenStreetMap' },
     push: { title: 'Push-уведомления', desc: 'Рассылка срочных сообщений подписчикам' },
+    ai: { title: 'AI-импорт', desc: 'Разбор сообщений о топливе и создание отчётов' },
     analytics: { title: 'Посетители', desc: 'Уникальные заходы на сайт по дням' },
     system: { title: 'Система', desc: 'Память, диск, очередь и настройки сервера' },
     faq: { title: 'FAQ', desc: 'Вопросы и ответы в разделе помощи' },
@@ -68,6 +70,7 @@ const navGroups = computed(() => [
         items: [
             { id: 'faq', label: 'FAQ', icon: 'help-circle' },
             { id: 'osm', label: 'Импорт OSM', icon: 'navigation' },
+            { id: 'ai', label: 'AI-импорт', icon: 'star' },
             { id: 'push', label: 'Push', icon: 'bell' },
         ],
     },
@@ -514,6 +517,13 @@ onMounted(() => {
                         :auth-headers="authHeaders"
                         @error="error = $event"
                         @done="(msg) => { saveNotice = msg; error = null; }"
+                    />
+
+                    <AdminAiChatPanel
+                        v-if="tab === 'ai'"
+                        :auth-headers="authHeaders"
+                        @error="error = $event"
+                        @saved="(msg) => { saveNotice = msg; error = null; }"
                     />
 
                     <AdminPushPanel

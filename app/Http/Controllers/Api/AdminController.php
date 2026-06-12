@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\FeedbackStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AdminAiChatApplyRequest;
+use App\Http\Requests\AdminAiChatParseRequest;
 use App\Http\Requests\AdminSendPushRequest;
 use App\Http\Requests\ReorderFaqItemsRequest;
 use App\Http\Requests\StoreFaqItemRequest;
@@ -15,6 +17,7 @@ use App\Models\FeedbackMessage;
 use App\Models\PushSubscription;
 use App\Models\Report;
 use App\Models\StationCorrection;
+use App\Services\AdminFuelAiService;
 use App\Services\AdminReportService;
 use App\Services\AppSettingsService;
 use App\Services\FaqService;
@@ -41,6 +44,7 @@ class AdminController extends Controller
         private StationImportService $importService,
         private VisitorStatsService $visitorStats,
         private SystemMetricsService $systemMetrics,
+        private AdminFuelAiService $fuelAi,
     ) {}
 
     public function login(Request $request): JsonResponse
@@ -109,6 +113,39 @@ class AdminController extends Controller
     {
         return response()->json([
             'data' => $this->systemMetrics->snapshot(),
+        ]);
+    }
+
+    public function aiChatStatus(): JsonResponse
+    {
+        $configured = is_string(config('ai.api_key')) && config('ai.api_key') !== '';
+
+        return response()->json([
+            'data' => [
+                'configured' => $configured,
+                'model' => config('ai.model'),
+            ],
+        ]);
+    }
+
+    public function aiChatParse(AdminAiChatParseRequest $request): JsonResponse
+    {
+        try {
+            $preview = $this->fuelAi->parseAndMatch($request->validated('message'));
+
+            return response()->json(['data' => $preview]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
+        }
+    }
+
+    public function aiChatApply(AdminAiChatApplyRequest $request): JsonResponse
+    {
+        $result = $this->fuelAi->apply($request->validated('items'));
+
+        return response()->json([
+            'message' => "Создано отчётов: {$result['created']}",
+            'data' => $result,
         ]);
     }
 

@@ -46,6 +46,9 @@ Route::middleware(['admin', 'throttle:admin-api'])->prefix('admin')->group(funct
     Route::get('/summary', [AdminController::class, 'summary']);
     Route::get('/analytics', [AdminController::class, 'analytics']);
     Route::get('/system', [AdminController::class, 'system']);
+    Route::get('/ai-chat/status', [AdminController::class, 'aiChatStatus']);
+    Route::post('/ai-chat/parse', [AdminController::class, 'aiChatParse'])->middleware('throttle:10,60');
+    Route::post('/ai-chat/apply', [AdminController::class, 'aiChatApply'])->middleware('throttle:20,60');
     Route::get('/corrections', [AdminController::class, 'corrections']);
     Route::post('/corrections/{correction}/apply', [AdminController::class, 'applyCorrection']);
     Route::post('/corrections/{correction}/reject', [AdminController::class, 'rejectCorrection']);
