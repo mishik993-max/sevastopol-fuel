@@ -26,10 +26,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Report::observe(ReportObserver::class);
 
-        RateLimiter::for('admin-api', function (Request $request) {
-            return Limit::perMinute(120)->by($request->ip());
-        });
-
         RateLimiter::for('reports-store', function (Request $request) {
             return Limit::perMinute(20)->by($request->ip());
         });

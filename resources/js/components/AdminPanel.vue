@@ -108,6 +108,16 @@ async function apiFetch(url, options = {}) {
         throw new Error('Сессия истекла — войдите снова');
     }
 
+    if (res.status === 429) {
+        const retryAfter = res.headers.get('Retry-After');
+        throw new Error(
+            json.message
+            || (retryAfter
+                ? `Слишком много запросов. Подождите ${retryAfter} сек.`
+                : 'Слишком много запросов. Подождите немного.'),
+        );
+    }
+
     if (!res.ok) throw new Error(json.message || 'Ошибка запроса');
 
     return json;

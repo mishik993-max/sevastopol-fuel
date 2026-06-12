@@ -42,15 +42,15 @@ Route::middleware('throttle:60,1')->group(function () {
 
 Route::post('/admin/login', [AdminController::class, 'login']);
 
-Route::middleware(['admin', 'throttle:admin-api'])->prefix('admin')->group(function () {
+Route::middleware(['admin'])->prefix('admin')->group(function () {
     Route::get('/summary', [AdminController::class, 'summary']);
     Route::get('/analytics', [AdminController::class, 'analytics']);
     Route::get('/system', [AdminController::class, 'system']);
     Route::get('/ai-chat/status', [AdminController::class, 'aiChatStatus']);
-    Route::post('/ai-chat/parse', [AdminController::class, 'aiChatParse'])->middleware('throttle:10,60');
+    Route::post('/ai-chat/parse', [AdminController::class, 'aiChatParse']);
     Route::get('/ai-chat/queue', [AdminController::class, 'aiChatQueue']);
     Route::delete('/ai-chat/queue/{queueItem}', [AdminController::class, 'aiChatQueueDestroy']);
-    Route::post('/ai-chat/apply', [AdminController::class, 'aiChatApply'])->middleware('throttle:20,60');
+    Route::post('/ai-chat/apply', [AdminController::class, 'aiChatApply']);
     Route::get('/corrections', [AdminController::class, 'corrections']);
     Route::post('/corrections/{correction}/apply', [AdminController::class, 'applyCorrection']);
     Route::post('/corrections/{correction}/reject', [AdminController::class, 'rejectCorrection']);
@@ -62,10 +62,10 @@ Route::middleware(['admin', 'throttle:admin-api'])->prefix('admin')->group(funct
     Route::post('/reports/{report}/hide', [AdminController::class, 'hideReport']);
     Route::post('/reports/{report}/unhide', [AdminController::class, 'unhideReport']);
     Route::delete('/reports/{report}', [AdminController::class, 'destroyReport']);
-    Route::get('/osm-import/preview', [AdminController::class, 'osmImportPreview'])->middleware('throttle:10,30');
-    Route::post('/osm-import/run', [AdminController::class, 'osmImportRun'])->middleware('throttle:10,30');
+    Route::get('/osm-import/preview', [AdminController::class, 'osmImportPreview']);
+    Route::post('/osm-import/run', [AdminController::class, 'osmImportRun']);
     Route::get('/push/status', [AdminController::class, 'pushStatus']);
-    Route::post('/push/send', [AdminController::class, 'sendPush'])->middleware('throttle:5,60');
+    Route::post('/push/send', [AdminController::class, 'sendPush']);
     Route::get('/faq', [AdminController::class, 'faq']);
     Route::post('/faq', [AdminController::class, 'storeFaq']);
     Route::patch('/faq/reorder', [AdminController::class, 'reorderFaq']);
