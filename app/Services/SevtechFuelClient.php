@@ -200,6 +200,7 @@ class SevtechFuelClient
             FuelType::A92->value => 'a92',
             FuelType::A95->value => 'a95',
             FuelType::A95Plus->value => 'a95_ultra',
+            FuelType::A100->value => 'a100',
             FuelType::Dt->value => 'diesel',
             FuelType::DtPlus->value => 'diesel_ultra',
             FuelType::Gas->value => 'lpg',
@@ -228,24 +229,6 @@ class SevtechFuelClient
                 'sale_types' => [SaleType::Qr->value],
                 'fill_percent' => $percent,
             ];
-        }
-
-        $hasA95Plus = collect($mapped)->contains(fn (array $fuel) => $fuel['fuel_type'] === FuelType::A95Plus->value);
-
-        if (! $hasA95Plus && array_key_exists('a100', $row)) {
-            $percent = isset($row['a100_percent']) && is_numeric($row['a100_percent'])
-                ? (int) $row['a100_percent']
-                : null;
-            $status = $this->normalizeSevtechStatus($row['a100'], $percent);
-
-            if ($status !== null) {
-                $mapped[] = [
-                    'fuel_type' => FuelType::A95Plus->value,
-                    'status' => $status,
-                    'sale_types' => [SaleType::Qr->value],
-                    'fill_percent' => $percent,
-                ];
-            }
         }
 
         return $this->dedupeFuels($mapped);
@@ -417,7 +400,8 @@ class SevtechFuelClient
         return [
             FuelType::A92->value => ['a92', 'ai92', 'ai_92', '92'],
             FuelType::A95->value => ['a95', 'ai95', 'ai_95', '95'],
-            FuelType::A95Plus->value => ['a95_ultra', 'a95_plus', 'a95plus', 'a100'],
+            FuelType::A95Plus->value => ['a95_ultra', 'a95_plus', 'a95plus'],
+            FuelType::A100->value => ['a100', 'ai100', '100'],
             FuelType::Dt->value => ['diesel', 'dt'],
             FuelType::DtPlus->value => ['diesel_ultra', 'dt_plus', 'dtplus'],
             FuelType::Gas->value => ['lpg', 'gas'],
@@ -435,7 +419,8 @@ class SevtechFuelClient
         return match (true) {
             in_array($value, ['a92', 'ai92', '92'], true) => FuelType::A92->value,
             in_array($value, ['a95', 'ai95', '95'], true) => FuelType::A95->value,
-            in_array($value, ['a95_ultra', 'a95plus', 'a100'], true) => FuelType::A95Plus->value,
+            in_array($value, ['a95_ultra', 'a95plus'], true) => FuelType::A95Plus->value,
+            in_array($value, ['a100', 'ai100', '100'], true) => FuelType::A100->value,
             in_array($value, ['diesel', 'dt', 'дт'], true) => FuelType::Dt->value,
             in_array($value, ['diesel_ultra', 'dt_plus', 'dtplus'], true) => FuelType::DtPlus->value,
             in_array($value, ['lpg', 'gas', 'газ'], true) => FuelType::Gas->value,

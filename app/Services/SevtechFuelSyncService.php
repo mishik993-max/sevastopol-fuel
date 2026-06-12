@@ -26,17 +26,127 @@ class SevtechFuelSyncService
         return $this->buildPreview($fetched['items'], $fetched['fetched_at'], $fetched['raw']);
     }
 
-    /** @param  list<int>  $stationIds */
-    public function sync(array $stationIds = []): array
+    /** @param  list<int>  $stationIds
+     * @param  list<array<string, mixed>>  $items
+     */
+    public function sync(array $stationIds = [], array $items = []): array
     {
+        if ($items !== []) {
+            return $this->syncExplicitItems($items);
+        }
+
         $preview = $this->preview();
         $selectedIds = $stationIds !== [] ? array_flip($stationIds) : null;
+
+        return $this->syncPreviewItems($preview['items'], $selectedIds);
+    }
+
+    /** @param  list<array<string, mixed>>  $sevtechFuels
+     * @return array<string, mixed>
+     */
+    public function resolveFuels(int $stationId, array $sevtechFuels): array
+    {
+        $station = Station::query()->find($stationId);
+
+        if ($station === null) {
+            throw new \InvalidArgumentException('АЗС не найдена');
+        }
+
+        $normalized = array_map(function (array $fuel) {
+            $status = $fuel['status'] ?? $fuel['new_status'] ?? null;
+
+            return [
+                'fuel_type' => $fuel['fuel_type'],
+                'status' => $status,
+                'sale_types' => $fuel['sale_types'] ?? ['qr'],
+            ];
+        }, $sevtechFuels);
+
+        $fuelPreview = $this->buildFuelPreview($stationId, $normalized);
+
+        return [
+            'station_id' => $stationId,
+            'station_label' => "{$station->network} · {$station->name}",
+            'station_address' => $station->address,
+            'fuels' => $fuelPreview['fuels'],
+            'will_create' => $fuelPreview['will_create'],
+            'selected' => $fuelPreview['will_create'],
+        ];
+    }
+
+    /** @param  list<array<string, mixed>>  $items
+     * @return array{created: int, skipped: int, stations: list<string>}
+     */
+    private function syncExplicitItems(array $items): array
+    {
         $created = 0;
         $skipped = 0;
         $stations = [];
 
-        DB::transaction(function () use ($preview, $selectedIds, &$created, &$skipped, &$stations) {
-            foreach ($preview['items'] as $item) {
+        DB::transaction(function () use ($items, &$created, &$skipped, &$stations) {
+            foreach ($items as $item) {
+                $stationId = (int) ($item['station_id'] ?? 0);
+                $station = Station::query()->find($stationId);
+
+                if ($station === null) {
+                    continue;
+                }
+
+                foreach ($item['fuels'] as $fuel) {
+                    if (! ($fuel['changed'] ?? false)) {
+                        continue;
+                    }
+
+                    $newStatus = (string) ($fuel['new_status'] ?? $fuel['status'] ?? '');
+
+                    if ($newStatus === '') {
+                        continue;
+                    }
+
+                    if ($this->recentSevtechReportExists($station->id, $fuel['fuel_type'], $newStatus)) {
+                        $skipped++;
+
+                        continue;
+                    }
+
+                    Report::query()->create([
+                        'station_id' => $station->id,
+                        'fuel_type' => FuelType::from($fuel['fuel_type']),
+                        'status' => FuelStatus::from($newStatus),
+                        'statuses' => [$newStatus],
+                        'queue_size' => QueueSize::Unknown,
+                        'sale_types' => $fuel['sale_types'] ?? ['qr'],
+                        'comment' => self::COMMENT_PREFIX,
+                        'is_confirmation' => false,
+                        'created_at' => now(),
+                    ]);
+
+                    $created++;
+                }
+
+                $stations[] = "{$station->network} · {$station->name}";
+            }
+        });
+
+        return [
+            'created' => $created,
+            'skipped' => $skipped,
+            'stations' => array_values(array_unique($stations)),
+        ];
+    }
+
+    /** @param  list<array<string, mixed>>  $items
+     * @param  array<int, int>|null  $selectedIds
+     * @return array{created: int, skipped: int, stations: list<string>}
+     */
+    private function syncPreviewItems(array $items, ?array $selectedIds): array
+    {
+        $created = 0;
+        $skipped = 0;
+        $stations = [];
+
+        DB::transaction(function () use ($items, $selectedIds, &$created, &$skipped, &$stations) {
+            foreach ($items as $item) {
                 if ($item['station_id'] === null) {
                     continue;
                 }
@@ -133,8 +243,28 @@ class SevtechFuelSyncService
                 'unchanged' => $unchanged,
             ],
             'items' => $rows,
+            'station_catalog' => $this->stationCatalog(),
             'raw_sample' => $this->rawSample($raw),
         ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function stationCatalog(): array
+    {
+        return Station::query()
+            ->where('is_active', true)
+            ->orderBy('network')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Station $station) => [
+                'station_id' => $station->id,
+                'label' => "{$station->network} · {$station->name}",
+                'address' => $station->address,
+                'latitude' => $station->latitude !== null ? (float) $station->latitude : null,
+                'longitude' => $station->longitude !== null ? (float) $station->longitude : null,
+            ])
+            ->values()
+            ->all();
     }
 
     /** @param  array<string, mixed>  $item
@@ -154,52 +284,13 @@ class SevtechFuelSyncService
             (string) ($item['network'] ?? config('sevtech.network_hint')),
             (string) $item['name'],
             $item['address'] ?? null,
-            5,
+            8,
             isset($item['latitude']) ? (float) $item['latitude'] : null,
             isset($item['longitude']) ? (float) $item['longitude'] : null,
         );
 
         $stationId = $match['station']->id ?? null;
-        $fuelRows = [];
-        $willCreate = false;
-
-        if ($stationId !== null) {
-            $station = Station::query()->find($stationId);
-
-            foreach ($item['fuels'] as $fuel) {
-                $currentStatus = $this->currentStatus($station, FuelType::from($fuel['fuel_type']));
-                $newStatus = $fuel['status'];
-                $changed = $currentStatus?->value !== $newStatus;
-
-                if ($changed && ! $this->recentSevtechReportExists($stationId, $fuel['fuel_type'], $newStatus)) {
-                    $willCreate = true;
-                }
-
-                $fuelRows[] = [
-                    'fuel_type' => $fuel['fuel_type'],
-                    'fuel_label' => FuelType::from($fuel['fuel_type'])->label(),
-                    'current_status' => $currentStatus?->value,
-                    'current_status_label' => $currentStatus?->label() ?? '—',
-                    'new_status' => $newStatus,
-                    'new_status_label' => FuelStatus::from($newStatus)->label(),
-                    'sale_types' => $fuel['sale_types'],
-                    'changed' => $changed,
-                ];
-            }
-        } else {
-            foreach ($item['fuels'] as $fuel) {
-                $fuelRows[] = [
-                    'fuel_type' => $fuel['fuel_type'],
-                    'fuel_label' => FuelType::from($fuel['fuel_type'])->label(),
-                    'current_status' => null,
-                    'current_status_label' => '—',
-                    'new_status' => $fuel['status'],
-                    'new_status_label' => FuelStatus::from($fuel['status'])->label(),
-                    'sale_types' => $fuel['sale_types'],
-                    'changed' => true,
-                ];
-            }
-        }
+        $fuelPreview = $this->buildFuelPreview($stationId, $item['fuels']);
 
         return [
             'external_id' => $item['external_id'],
@@ -223,9 +314,63 @@ class SevtechFuelSyncService
                 'match_type' => $candidate['match_type'],
                 'distance_m' => $candidate['distance_m'] ?? null,
             ], $candidates),
+            'fuels' => $fuelPreview['fuels'],
+            'will_create' => $fuelPreview['will_create'],
+            'selected' => $fuelPreview['will_create'] && $stationId !== null,
+        ];
+    }
+
+    /** @param  list<array<string, mixed>>  $sevtechFuels
+     * @return array{fuels: list<array<string, mixed>>, will_create: bool}
+     */
+    private function buildFuelPreview(?int $stationId, array $sevtechFuels): array
+    {
+        $fuelRows = [];
+        $willCreate = false;
+
+        if ($stationId !== null) {
+            $station = Station::query()->find($stationId);
+
+            foreach ($sevtechFuels as $fuel) {
+                $currentStatus = $this->currentStatus($station, FuelType::from($fuel['fuel_type']));
+                $newStatus = $fuel['status'];
+                $changed = $currentStatus?->value !== $newStatus;
+
+                if ($changed && ! $this->recentSevtechReportExists($stationId, $fuel['fuel_type'], $newStatus)) {
+                    $willCreate = true;
+                }
+
+                $fuelRows[] = [
+                    'fuel_type' => $fuel['fuel_type'],
+                    'fuel_label' => FuelType::from($fuel['fuel_type'])->label(),
+                    'current_status' => $currentStatus?->value,
+                    'current_status_label' => $currentStatus?->label() ?? '—',
+                    'new_status' => $newStatus,
+                    'new_status_label' => FuelStatus::from($newStatus)->label(),
+                    'sale_types' => $fuel['sale_types'],
+                    'changed' => $changed,
+                ];
+            }
+        } else {
+            foreach ($sevtechFuels as $fuel) {
+                $fuelRows[] = [
+                    'fuel_type' => $fuel['fuel_type'],
+                    'fuel_label' => FuelType::from($fuel['fuel_type'])->label(),
+                    'current_status' => null,
+                    'current_status_label' => '—',
+                    'new_status' => $fuel['status'],
+                    'new_status_label' => FuelStatus::from($fuel['status'])->label(),
+                    'sale_types' => $fuel['sale_types'],
+                    'changed' => true,
+                ];
+            }
+
+            $willCreate = $fuelRows !== [];
+        }
+
+        return [
             'fuels' => $fuelRows,
             'will_create' => $willCreate,
-            'selected' => $willCreate && $stationId !== null,
         ];
     }
 

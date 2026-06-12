@@ -192,6 +192,77 @@ class SevtechFuelSyncTest extends TestCase
             ->assertJsonPath('data.items.0.match_type', 'coordinates');
     }
 
+    public function test_sevtech_maps_a100_as_separate_fuel_type(): void
+    {
+        $station = Station::query()->create([
+            'name' => 'Фиолентовское',
+            'network' => 'ТЭС',
+            'address' => 'Фиолентовское, 5а',
+            'latitude' => 44.581116,
+            'longitude' => 33.478819,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            'https://fuel.sevtech.org/map/a' => Http::response([
+                'gas_stations' => [[
+                    'id' => 'gs21',
+                    'uuid' => '8690d9bb-4cdd-4203-9e01-76b9c3b3d0b9',
+                    'title' => 'Фиолентовское',
+                    'address' => 'Фиолентовское, 5а',
+                    'lat_lng' => ['lat' => 44.581116, 'lng' => 33.478819],
+                    'a92' => 'FUEL_STATUS_UNAVAILABLE',
+                    'a95' => 'FUEL_STATUS_UNAVAILABLE',
+                    'a95_ultra' => 'FUEL_STATUS_UNAVAILABLE',
+                    'diesel' => 'FUEL_STATUS_UNAVAILABLE',
+                    'diesel_ultra' => 'FUEL_STATUS_UNAVAILABLE',
+                    'a100' => 'FUEL_STATUS_AVAILABLE',
+                    'a100_percent' => 55,
+                    'lpg' => 'FUEL_STATUS_UNAVAILABLE',
+                ]],
+            ], 200),
+        ]);
+
+        $this->withHeader('X-Admin-Token', 'test-admin-secret')
+            ->postJson('/api/admin/sevtech/sync', [
+                'station_ids' => [$station->id],
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('reports', [
+            'station_id' => $station->id,
+            'fuel_type' => 'a100',
+            'status' => 'available',
+        ]);
+    }
+
+    public function test_sevtech_rebind_updates_fuel_diff_for_manual_station(): void
+    {
+        $station = Station::query()->create([
+            'name' => 'Индустриальная',
+            'network' => 'ТЭС',
+            'address' => 'Индустриальная, 10',
+            'latitude' => 44.567306,
+            'longitude' => 33.512421,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        $this->withHeader('X-Admin-Token', 'test-admin-secret')
+            ->postJson('/api/admin/sevtech/rebind', [
+                'station_id' => $station->id,
+                'fuels' => [
+                    ['fuel_type' => 'a92', 'status' => 'available', 'sale_types' => ['qr']],
+                    ['fuel_type' => 'a95', 'status' => 'available', 'sale_types' => ['qr']],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.station_id', $station->id)
+            ->assertJsonPath('data.will_create', true)
+            ->assertJsonPath('data.fuels.0.changed', true);
+    }
+
     public function test_sevtech_sync_skips_unchanged_status(): void
     {
         $station = Station::query()->create([

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { apiUrl, parseApiResponse } from '../api';
+import { distanceM } from '../constants';
 
 const props = defineProps({
     authHeaders: { type: Function, required: true },
@@ -10,18 +11,107 @@ const emit = defineEmits(['error', 'done']);
 
 const loading = ref(false);
 const syncing = ref(false);
+const rebindingId = ref(null);
 const preview = ref(null);
 const rows = ref([]);
+const stationCatalog = ref([]);
 
 const selectedCount = computed(() => rows.value.filter((row) => row.selected && row.station_id).length);
 const reportCount = computed(() => rows.value
     .filter((row) => row.selected && row.station_id)
     .reduce((sum, row) => sum + row.fuels.filter((fuel) => fuel.changed).length, 0));
 
+function mapUrl(stationId) {
+    return stationId ? `/?station=${stationId}` : '#';
+}
+
+function confidenceClass(score) {
+    if (score == null) return '';
+    if (score >= 75) return 'admin-ai-badge--good';
+    if (score >= 50) return 'admin-ai-badge--ok';
+
+    return 'admin-ai-badge--low';
+}
+
+function catalogDistance(row, stationId) {
+    if (row.latitude == null || row.longitude == null) {
+        return null;
+    }
+
+    const entry = stationCatalog.value.find((item) => item.station_id === stationId);
+
+    if (!entry?.latitude || !entry?.longitude) {
+        return null;
+    }
+
+    return Math.round(distanceM(row.latitude, row.longitude, entry.latitude, entry.longitude));
+}
+
+function stationOptions(row) {
+    const seen = new Set();
+    const options = [];
+
+    for (const item of row.candidates ?? []) {
+        if (seen.has(item.station_id)) {
+            continue;
+        }
+
+        seen.add(item.station_id);
+        options.push({
+            ...item,
+            distance_m: item.distance_m ?? catalogDistance(row, item.station_id),
+        });
+    }
+
+    const catalog = [...(stationCatalog.value || [])]
+        .map((item) => ({
+            ...item,
+            score: null,
+            match_type: 'manual',
+            distance_m: catalogDistance(row, item.station_id),
+        }))
+        .sort((left, right) => (left.distance_m ?? 999999) - (right.distance_m ?? 999999));
+
+    for (const item of catalog) {
+        if (seen.has(item.station_id)) {
+            continue;
+        }
+
+        seen.add(item.station_id);
+        options.push(item);
+    }
+
+    return options;
+}
+
+function selectedStation(row) {
+    if (!row.station_id) {
+        return null;
+    }
+
+    return stationOptions(row).find((item) => item.station_id === row.station_id) ?? {
+        station_id: row.station_id,
+        label: row.station_label,
+        address: row.station_address,
+        score: row.confidence,
+        match_type: row.match_type,
+        distance_m: row.match_distance_m,
+    };
+}
+
+function sevtechFuelsPayload(row) {
+    return row.fuels.map((fuel) => ({
+        fuel_type: fuel.fuel_type,
+        status: fuel.new_status,
+        sale_types: fuel.sale_types,
+    }));
+}
+
 async function loadPreview() {
     loading.value = true;
     preview.value = null;
     rows.value = [];
+    stationCatalog.value = [];
     emit('error', null);
 
     try {
@@ -33,6 +123,7 @@ async function loadPreview() {
         if (!res.ok) throw new Error(json.message || 'Ошибка загрузки');
 
         preview.value = json.data;
+        stationCatalog.value = json.data.station_catalog || [];
         rows.value = (json.data.items || []).map((item) => ({
             ...item,
             selected: Boolean(item.selected && item.station_id),
@@ -44,18 +135,66 @@ async function loadPreview() {
     }
 }
 
-async function applySync() {
-    const stationIds = rows.value
-        .filter((row) => row.selected && row.station_id)
-        .map((row) => row.station_id);
+async function onStationChange(row) {
+    if (!row.station_id) {
+        row.station_label = null;
+        row.station_address = null;
+        row.confidence = null;
+        row.match_type = null;
+        row.match_distance_m = null;
+        row.will_create = false;
+        row.selected = false;
 
-    if (!stationIds.length) {
+        return;
+    }
+
+    rebindingId.value = row.external_id;
+    emit('error', null);
+
+    try {
+        const res = await fetch(apiUrl('/api/admin/sevtech/rebind'), {
+            method: 'POST',
+            headers: props.authHeaders(),
+            body: JSON.stringify({
+                station_id: row.station_id,
+                fuels: sevtechFuelsPayload(row),
+            }),
+        });
+        const json = await parseApiResponse(res);
+
+        if (!res.ok) throw new Error(json.message || 'Ошибка привязки');
+
+        const data = json.data;
+        row.station_label = data.station_label;
+        row.station_address = data.station_address;
+        row.fuels = data.fuels;
+        row.will_create = data.will_create;
+        row.selected = Boolean(data.will_create);
+        row.confidence = selectedStation(row)?.score ?? null;
+        row.match_type = selectedStation(row)?.match_type ?? 'manual';
+        row.match_distance_m = selectedStation(row)?.distance_m ?? null;
+    } catch (e) {
+        emit('error', e.message);
+    } finally {
+        rebindingId.value = null;
+    }
+}
+
+async function applySync() {
+    const items = rows.value
+        .filter((row) => row.selected && row.station_id)
+        .map((row) => ({
+            station_id: row.station_id,
+            fuels: row.fuels,
+        }));
+
+    if (!items.length) {
         emit('error', 'Выберите хотя бы одну АЗС с изменениями');
 
         return;
     }
 
-    const ok = window.confirm(`Обновить ${reportCount.value} отчётов для ${stationIds.length} АЗС?`);
+    const ok = window.confirm(`Обновить ${reportCount.value} отчётов для ${items.length} АЗС?`);
 
     if (!ok) return;
 
@@ -66,7 +205,7 @@ async function applySync() {
         const res = await fetch(apiUrl('/api/admin/sevtech/sync'), {
             method: 'POST',
             headers: props.authHeaders(),
-            body: JSON.stringify({ station_ids: stationIds }),
+            body: JSON.stringify({ items }),
         });
         const json = await parseApiResponse(res);
 
@@ -95,6 +234,26 @@ function fuelsSummary(fuels) {
 
         return `${fuel.fuel_label}: ${fuel.new_status_label}`;
     }).join(', ');
+}
+
+function optionLabel(item) {
+    let text = item.label;
+
+    if (item.score != null) {
+        text += ` · ${item.score}%`;
+    }
+
+    if (item.match_type === 'coordinates') {
+        text += ' (GPS)';
+    } else if (item.match_type === 'address') {
+        text += ' (адрес)';
+    }
+
+    if (item.distance_m != null) {
+        text += ` · ${item.distance_m} м`;
+    }
+
+    return text;
 }
 </script>
 
@@ -155,14 +314,18 @@ function fuelsSummary(fuels) {
             >
                 <div class="admin-ai-card-top">
                     <label v-if="row.station_id && row.will_create" class="admin-ai-card-check">
-                        <input v-model="row.selected" type="checkbox" :disabled="syncing" />
+                        <input v-model="row.selected" type="checkbox" :disabled="syncing || rebindingId === row.external_id" />
                     </label>
                     <div v-else class="admin-ai-card-check" />
 
                     <div class="admin-ai-card-main">
                         <div class="admin-ai-card-title-row">
                             <h3 class="admin-ai-card-title">{{ row.name }}</h3>
-                            <span v-if="row.confidence != null" class="admin-ai-badge admin-ai-badge--ok">
+                            <span
+                                v-if="row.confidence != null"
+                                class="admin-ai-badge"
+                                :class="confidenceClass(row.confidence)"
+                            >
                                 {{ row.confidence }}%
                                 <template v-if="row.match_type === 'coordinates'"> · GPS</template>
                                 <template v-else-if="row.match_type === 'address'"> · адрес</template>
@@ -172,11 +335,42 @@ function fuelsSummary(fuels) {
                             </span>
                         </div>
                         <p v-if="row.address" class="admin-ai-card-address">{{ row.address }}</p>
-                        <p v-if="row.station_label" class="admin-sevtech-match">
-                            {{ row.station_label }}
-                            <span v-if="row.match_distance_m != null" class="hint">({{ row.match_distance_m }} м)</span>
-                        </p>
                         <p class="admin-sevtech-fuels">{{ fuelsSummary(row.fuels) }}</p>
+                    </div>
+                </div>
+
+                <div v-if="stationCatalog.length" class="admin-ai-card-match">
+                    <label class="admin-ai-card-select-label">
+                        АЗС в базе
+                        <select
+                            v-model.number="row.station_id"
+                            class="field-input admin-ai-card-select"
+                            :disabled="syncing || rebindingId === row.external_id"
+                            @change="onStationChange(row)"
+                        >
+                            <option :value="null">— выберите вручную —</option>
+                            <option
+                                v-for="item in stationOptions(row)"
+                                :key="item.station_id"
+                                :value="item.station_id"
+                            >
+                                {{ optionLabel(item) }}
+                            </option>
+                        </select>
+                    </label>
+
+                    <div v-if="selectedStation(row)" class="admin-ai-card-match-meta">
+                        <p v-if="selectedStation(row).address" class="admin-ai-card-address">
+                            {{ selectedStation(row).address }}
+                        </p>
+                        <a
+                            :href="mapUrl(row.station_id)"
+                            class="admin-ai-card-map"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Открыть на карте ↗
+                        </a>
                     </div>
                 </div>
             </article>

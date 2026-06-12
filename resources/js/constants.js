@@ -2,6 +2,7 @@ export const FUEL_TYPES = [
     { value: 'a92', label: '92' },
     { value: 'a95', label: '95' },
     { value: 'a95_plus', label: '95+' },
+    { value: 'a100', label: '100' },
     { value: 'dt', label: 'ДТ' },
     { value: 'dt_plus', label: 'ДТ+' },
     { value: 'gas', label: 'Газ' },
