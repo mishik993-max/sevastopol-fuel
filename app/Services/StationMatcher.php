@@ -45,7 +45,7 @@ class StationMatcher
                 ];
             }
 
-            $addressScore = $this->scoreByAddress($station, $addressNeedle, $networkHint, $number);
+            $addressScore = $this->scoreByAddress($station, $addressNeedle, $networkHint, $number, $nameHint, $addressHint);
 
             if ($addressScore >= 25 && ($best === null || $addressScore > $best['score'])) {
                 $best = [
@@ -296,8 +296,14 @@ class StationMatcher
         return min(100.0, round($score, 1));
     }
 
-    private function scoreByAddress(Station $station, string $addressNeedle, string $networkHint, ?string $number): float
-    {
+    private function scoreByAddress(
+        Station $station,
+        string $addressNeedle,
+        string $networkHint,
+        ?string $number,
+        string $nameHint = '',
+        ?string $addressHint = null,
+    ): float {
         if ($addressNeedle === '' || mb_strlen($addressNeedle) < 4) {
             return 0;
         }
