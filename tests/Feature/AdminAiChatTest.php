@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Report;
 use App\Models\Station;
+use App\Services\StationMatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -74,7 +75,8 @@ class AdminAiChatTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('data.items.0.station_id', $station->id)
-            ->assertJsonPath('data.network_notes.0', 'В сети ТЭС только QR');
+            ->assertJsonPath('data.network_notes.0', 'В сети ТЭС только QR')
+            ->assertJsonStructure(['data' => ['items' => [['queue_id']]]]);
 
         $items = $parse->json('data.items');
 
@@ -89,10 +91,87 @@ class AdminAiChatTest extends TestCase
                         'comment' => $fuel['comment'],
                     ], $items[0]['fuels']),
                 ]],
+                'queue_ids' => [$items[0]['queue_id']],
             ])
             ->assertOk()
             ->assertJsonPath('data.created', 2);
 
         $this->assertSame(2, Report::query()->where('station_id', $station->id)->count());
+        $this->assertDatabaseCount('fuel_import_queue', 0);
+    }
+
+    public function test_ai_chat_queue_lists_pending_items(): void
+    {
+        Station::query()->create([
+            'name' => 'АТАН Россия №82',
+            'network' => 'Атан',
+            'address' => 'Камышовое шоссе',
+            'latitude' => 44.61,
+            'longitude' => 33.51,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            'https://api.timeweb.ai/v1/chat/completions' => Http::response([
+                'choices' => [[
+                    'message' => [
+                        'content' => json_encode([
+                            'summary' => 'Тест',
+                            'network' => 'Атан',
+                            'network_notes' => [],
+                            'stations' => [[
+                                'name_hint' => 'АЗС 82 Камышовое шоссе',
+                                'address_hint' => 'Камышовое шоссе',
+                                'sale_types' => ['regular'],
+                                'fuels' => [
+                                    ['fuel_type' => 'a92', 'status' => 'available'],
+                                ],
+                            ]],
+                        ], JSON_UNESCAPED_UNICODE),
+                    ],
+                ]],
+            ], 200),
+        ]);
+
+        $this->withHeader('X-Admin-Token', 'test-admin-secret')
+            ->postJson('/api/admin/ai-chat/parse', [
+                'message' => 'АЗС 82 Камышовое шоссе (АИ-92)',
+            ])
+            ->assertOk();
+
+        $this->withHeader('X-Admin-Token', 'test-admin-secret')
+            ->getJson('/api/admin/ai-chat/queue')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.raw', 'АЗС 82 Камышовое шоссе (Камышовое шоссе)');
+    }
+
+    public function test_station_matcher_prefers_matching_station_number(): void
+    {
+        $station61 = Station::query()->create([
+            'name' => 'АТАН Россия №61',
+            'network' => 'Атан',
+            'address' => 'Верхнесадовое',
+            'latitude' => 44.6,
+            'longitude' => 33.5,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        Station::query()->create([
+            'name' => 'АТАН Россия №82',
+            'network' => 'Атан',
+            'address' => 'Камышовое шоссе',
+            'latitude' => 44.61,
+            'longitude' => 33.51,
+            'source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        $match = app(StationMatcher::class)->bestMatch('Атан', 'АЗС 61 Верхнесадовое', 'Верхнесадовое');
+
+        $this->assertNotNull($match);
+        $this->assertSame($station61->id, $match['station']->id);
     }
 }

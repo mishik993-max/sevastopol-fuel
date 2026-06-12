@@ -6,6 +6,7 @@ use App\Enums\FuelStatus;
 use App\Enums\FuelType;
 use App\Enums\QueueSize;
 use App\Enums\SaleType;
+use App\Models\FuelImportQueueItem;
 use App\Models\Report;
 use App\Models\Station;
 use Illuminate\Support\Facades\DB;
@@ -26,14 +27,43 @@ class AdminFuelAiService
             ['role' => 'user', 'content' => $message],
         ]);
 
-        return $this->buildPreview($parsed, $message);
+        $preview = $this->buildPreview($parsed, $message);
+
+        return $this->attachQueueIds($preview, $message);
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function listQueue(): array
+    {
+        return FuelImportQueueItem::query()
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(fn (FuelImportQueueItem $item) => $this->entryFromQueueItem($item))
+            ->values()
+            ->all();
+    }
+
+    public function removeFromQueue(int $queueId): void
+    {
+        FuelImportQueueItem::query()->whereKey($queueId)->delete();
+    }
+
+    /** @param  list<int>  $queueIds */
+    public function removeManyFromQueue(array $queueIds): void
+    {
+        if ($queueIds === []) {
+            return;
+        }
+
+        FuelImportQueueItem::query()->whereIn('id', $queueIds)->delete();
     }
 
     /**
      * @param  list<array{station_id: int, fuels: list<array{fuel_type: string, statuses: list<string>, sale_types: list<string>, comment?: string|null}>}>  $items
+     * @param  list<int>  $queueIds
      * @return array{created: int, stations: list<string>}
      */
-    public function apply(array $items): array
+    public function apply(array $items, array $queueIds = []): array
     {
         $created = 0;
         $stationLabels = [];
@@ -65,6 +95,8 @@ class AdminFuelAiService
                 $stationLabels[] = "{$station->network} · {$station->name}";
             }
         });
+
+        $this->removeManyFromQueue($queueIds);
 
         return [
             'created' => $created,
@@ -128,11 +160,15 @@ class AdminFuelAiService
                 continue;
             }
 
+            $fuels = $this->dedupeFuels($fuels);
+
             $match = $this->matcher->bestMatch($networkHint, $nameHint, $addressHint);
-            $candidates = $this->matcher->candidates($networkHint, $nameHint, $addressHint, 3);
+            $candidates = $this->matcher->candidates($networkHint, $nameHint, $addressHint, 5);
 
             $entry = [
                 'index' => $index,
+                'name_hint' => $nameHint,
+                'address_hint' => $addressHint,
                 'raw' => trim($nameHint.($addressHint ? " ({$addressHint})" : '')),
                 'fuels' => $fuels,
                 'selected' => $match !== null,
@@ -142,12 +178,7 @@ class AdminFuelAiService
                     : null,
                 'station_address' => $match['station']->address ?? null,
                 'confidence' => $match['score'] ?? null,
-                'candidates' => array_map(fn (array $candidate) => [
-                    'station_id' => $candidate['station']->id,
-                    'label' => "{$candidate['station']->network} · {$candidate['station']->name}",
-                    'address' => $candidate['station']->address,
-                    'score' => $candidate['score'],
-                ], $candidates),
+                'candidates' => array_map(fn (array $candidate) => $this->formatCandidate($candidate['station'], $candidate['score']), $candidates),
             ];
 
             if ($match !== null) {
@@ -249,5 +280,129 @@ PROMPT;
         }
 
         return $prefix.' · '.$note;
+    }
+
+    /** @param  list<array<string, mixed>>  $fuels */
+    private function dedupeFuels(array $fuels): array
+    {
+        $seen = [];
+        $result = [];
+
+        foreach ($fuels as $fuel) {
+            $key = $fuel['fuel_type'];
+
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $result[] = $fuel;
+        }
+
+        return $result;
+    }
+
+    /** @return array{station_id: int, label: string, address: string, score: float, map_url: string} */
+    private function formatCandidate(Station $station, float $score): array
+    {
+        return [
+            'station_id' => $station->id,
+            'label' => "{$station->network} · {$station->name}",
+            'address' => $station->address,
+            'score' => $score,
+            'map_url' => $this->stationMapUrl($station->id),
+        ];
+    }
+
+    private function stationMapUrl(int $stationId): string
+    {
+        return rtrim((string) config('app.url'), '/').'/?station='.$stationId;
+    }
+
+    /** @param  array<string, mixed>  $preview */
+    private function attachQueueIds(array $preview, string $sourceMessage): array
+    {
+        $preview['items'] = array_map(
+            fn (array $entry) => $this->attachQueueId($entry, (string) ($preview['network'] ?? ''), $sourceMessage),
+            $preview['items'],
+        );
+        $preview['unmatched'] = array_map(
+            fn (array $entry) => $this->attachQueueId($entry, (string) ($preview['network'] ?? ''), $sourceMessage),
+            $preview['unmatched'],
+        );
+
+        return $preview;
+    }
+
+    /** @param  array<string, mixed>  $entry */
+    private function attachQueueId(array $entry, string $network, string $sourceMessage): array
+    {
+        $entry['queue_id'] = $this->upsertQueueItem($entry, $network, $sourceMessage);
+
+        return $entry;
+    }
+
+    /** @param  array<string, mixed>  $entry */
+    private function upsertQueueItem(array $entry, string $network, string $sourceMessage): int
+    {
+        $fingerprint = $this->fingerprint(
+            $network,
+            (string) ($entry['name_hint'] ?? $entry['raw']),
+            $entry['fuels'],
+        );
+
+        $item = FuelImportQueueItem::query()->firstOrNew(['fingerprint' => $fingerprint]);
+        $item->fill([
+            'network' => $network !== '' ? $network : null,
+            'name_hint' => (string) ($entry['name_hint'] ?? $entry['raw']),
+            'address_hint' => $entry['address_hint'] ?? null,
+            'raw' => (string) $entry['raw'],
+            'fuels' => $entry['fuels'],
+            'source_message' => $sourceMessage,
+        ]);
+        $item->save();
+
+        return $item->id;
+    }
+
+    /** @param  list<array<string, mixed>>  $fuels */
+    private function fingerprint(string $network, string $nameHint, array $fuels): string
+    {
+        $fuelKeys = array_map(fn (array $fuel) => $fuel['fuel_type'] ?? '', $fuels);
+        sort($fuelKeys);
+
+        return hash('sha256', mb_strtolower(trim($network.'|'.$nameHint.'|'.implode(',', $fuelKeys))));
+    }
+
+    /** @return array<string, mixed> */
+    private function entryFromQueueItem(FuelImportQueueItem $item): array
+    {
+        $network = (string) ($item->network ?? '');
+        $nameHint = $item->name_hint;
+        $addressHint = $item->address_hint;
+        $fuels = is_array($item->fuels) ? $item->fuels : [];
+
+        $match = $this->matcher->bestMatch($network, $nameHint, $addressHint);
+        $candidates = $this->matcher->candidates($network, $nameHint, $addressHint, 5);
+
+        return [
+            'queue_id' => $item->id,
+            'name_hint' => $nameHint,
+            'address_hint' => $addressHint,
+            'raw' => $item->raw,
+            'fuels' => $fuels,
+            'selected' => $match !== null,
+            'station_id' => $match['station']->id ?? null,
+            'station_label' => $match
+                ? "{$match['station']->network} · {$match['station']->name}"
+                : null,
+            'station_address' => $match['station']->address ?? null,
+            'confidence' => $match['score'] ?? null,
+            'candidates' => array_map(
+                fn (array $candidate) => $this->formatCandidate($candidate['station'], $candidate['score']),
+                $candidates,
+            ),
+            'queued_at' => $item->updated_at?->toIso8601String(),
+        ];
     }
 }

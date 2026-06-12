@@ -32,6 +32,8 @@ class AdminAiChatApplyRequest extends FormRequest
             'items.*.fuels.*.sale_types' => ['required', 'array', 'min:1'],
             'items.*.fuels.*.sale_types.*' => ['required', 'string', Rule::enum(SaleType::class)],
             'items.*.fuels.*.comment' => ['nullable', 'string', 'max:500'],
+            'queue_ids' => ['sometimes', 'array'],
+            'queue_ids.*' => ['integer', 'exists:fuel_import_queue,id'],
         ];
     }
 }

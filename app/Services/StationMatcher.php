@@ -52,23 +52,35 @@ class StationMatcher
         $score = 0.0;
 
         if ($networkHint !== '' && $this->networksMatch($station->network, $networkHint)) {
-            $score += 35;
+            $score += 25;
         }
 
-        if ($number !== null && preg_match('/\b'.preg_quote($number, '/').'\b/u', $haystack)) {
-            $score += 35;
-        }
+        if ($number !== null) {
+            $stationNumber = $this->extractStationNumberFromStation($station);
 
-        similar_text($haystack, $needle, $percent);
-        $score += min(30.0, $percent * 0.3);
+            if ($stationNumber !== null) {
+                if ($stationNumber !== $number) {
+                    return 0;
+                }
 
-        foreach ($this->tokens($needle) as $token) {
-            if (mb_strlen($token) >= 4 && str_contains($haystack, $token)) {
-                $score += 4;
+                $score += 55;
+            } elseif (! preg_match('/\b'.preg_quote($number, '/').'\b/u', $haystack)) {
+                return 0;
+            } else {
+                $score += 45;
             }
         }
 
-        return round($score, 1);
+        similar_text($haystack, $needle, $percent);
+        $score += min(25.0, $percent * 0.25);
+
+        foreach ($this->tokens($needle) as $token) {
+            if (mb_strlen($token) >= 4 && str_contains($haystack, $token)) {
+                $score += 3;
+            }
+        }
+
+        return min(100.0, round($score, 1));
     }
 
     private function networksMatch(string $left, string $right): bool
@@ -117,7 +129,16 @@ class StationMatcher
             return $matches[1];
         }
 
-        if (preg_match('/\b(\d{1,3})\b/u', $text, $matches)) {
+        if (preg_match('/№\s*(\d+)/u', $text, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
+    }
+
+    private function extractStationNumberFromStation(Station $station): ?string
+    {
+        if (preg_match('/(?:№|Russia|Россия|ATAN|АТАН)\s*(\d+)/ui', $station->name, $matches)) {
             return $matches[1];
         }
 
@@ -127,7 +148,7 @@ class StationMatcher
     /** @return list<string> */
     private function tokens(string $text): array
     {
-        preg_match_all('/[\p{L}\d]{3,}/u', $text, $matches);
+        preg_match_all('/[\p{L}\d]{4,}/u', $text, $matches);
 
         return $matches[0] ?? [];
     }

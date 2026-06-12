@@ -14,6 +14,7 @@ use App\Http\Requests\UpdateFaqItemRequest;
 use App\Http\Requests\UpdateFeedbackRequest;
 use App\Models\FaqItem;
 use App\Models\FeedbackMessage;
+use App\Models\FuelImportQueueItem;
 use App\Models\PushSubscription;
 use App\Models\Report;
 use App\Models\StationCorrection;
@@ -141,12 +142,30 @@ class AdminController extends Controller
 
     public function aiChatApply(AdminAiChatApplyRequest $request): JsonResponse
     {
-        $result = $this->fuelAi->apply($request->validated('items'));
+        $validated = $request->validated();
+        $result = $this->fuelAi->apply(
+            $validated['items'],
+            $validated['queue_ids'] ?? [],
+        );
 
         return response()->json([
             'message' => "Создано отчётов: {$result['created']}",
             'data' => $result,
         ]);
+    }
+
+    public function aiChatQueue(): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->fuelAi->listQueue(),
+        ]);
+    }
+
+    public function aiChatQueueDestroy(FuelImportQueueItem $queueItem): JsonResponse
+    {
+        $this->fuelAi->removeFromQueue($queueItem->id);
+
+        return response()->json(['message' => 'Удалено из очереди']);
     }
 
     public function corrections(): JsonResponse

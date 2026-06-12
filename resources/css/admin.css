@@ -1262,6 +1262,21 @@
     margin: 16px 0;
 }
 
+.admin-ai-queue {
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.admin-ai-row-queued {
+    margin: 0 0 6px;
+    font-size: 0.72rem;
+}
+
+.admin-ai-remove {
+    margin-top: 10px;
+}
+
 .admin-ai-section {
     max-width: 820px;
 }
@@ -1329,6 +1344,60 @@
 
 .admin-ai-row--unmatched {
     border-color: rgba(234, 179, 8, 0.35);
+}
+
+.admin-ai-row--low {
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+.admin-ai-preview-hint {
+    margin: -6px 0 12px;
+}
+
+.admin-ai-match-card {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-subtle);
+    background: var(--chip-bg);
+}
+
+.admin-ai-row-address {
+    margin: 4px 0 8px;
+}
+
+.admin-ai-map-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.admin-ai-map-link:hover {
+    text-decoration: underline;
+}
+
+.admin-ai-confidence--good {
+    color: #4ade80;
+}
+
+.admin-ai-confidence--ok {
+    color: var(--accent);
+}
+
+.admin-ai-confidence--low {
+    color: #f87171;
+}
+
+[data-theme="light"] .admin-ai-confidence--good {
+    color: #15803d;
+}
+
+[data-theme="light"] .admin-ai-confidence--low {
+    color: #b91c1c;
 }
 
 .admin-ai-row-check {
